@@ -14,7 +14,6 @@ export const serverEnv = {
   
   // Database
   databaseUrl: process.env.DATABASE_URL || '',
-  salesmenDatabaseUrl: process.env.SALESMEN_DATABASE_URL || '',
   
   // Add more environment variables as needed
 };

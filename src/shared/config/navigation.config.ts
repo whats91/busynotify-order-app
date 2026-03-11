@@ -27,6 +27,13 @@ export const navigationItems: NavigationItem[] = [
     icon: 'ClipboardList',
     roles: ['admin', 'customer', 'salesman'],
   },
+  {
+    id: 'salesmen',
+    labelKey: 'navigation.salesmen',
+    href: '/admin/salesmen',
+    icon: 'Users',
+    roles: ['admin'],
+  },
 ];
 
 // Get navigation items for a specific role

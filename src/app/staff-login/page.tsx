@@ -150,8 +150,7 @@ export default function StaffLoginPage() {
                   Admin access
                 </li>
                 <li>
-                  <code className="rounded bg-background px-1">salesman / salesman</code> -
-                  Salesman access
+                  Salesman accounts are created by the admin from the dashboard.
                 </li>
               </ul>
             </div>

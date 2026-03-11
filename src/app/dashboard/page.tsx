@@ -14,12 +14,13 @@ import {
   Package,
   Clock,
   CheckCircle2,
+  Users,
 } from 'lucide-react';
 import { useAuthStore, useCustomerStore, useHasHydrated } from '@/shared/lib/stores';
 import { useTranslation } from '@/shared/lib/language-context';
 import { AppShell } from '@/shared/components/app-shell';
 import { formatCurrency } from '@/shared/components/format-currency';
-import { orderService } from '@/versions/v1/services';
+import { orderService, salesmanService } from '@/versions/v1/services';
 import type { Order, OrderSummary } from '@/shared/types';
 
 export default function DashboardPage() {
@@ -33,6 +34,11 @@ export default function DashboardPage() {
     total: 0,
     pending: 0,
     completed: 0,
+  });
+  const [salesmanStats, setSalesmanStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
   const displayName =
@@ -82,6 +88,15 @@ export default function DashboardPage() {
         pending: orders.filter(o => o.status === 'pending').length,
         completed: orders.filter(o => o.status === 'delivered').length,
       });
+
+      if (user?.role === 'admin') {
+        const salesmen = await salesmanService.getSalesmen();
+        setSalesmanStats({
+          total: salesmen.length,
+          active: salesmen.filter((salesman) => salesman.isActive).length,
+          inactive: salesmen.filter((salesman) => !salesman.isActive).length,
+        });
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -124,14 +139,54 @@ export default function DashboardPage() {
                   : t.dashboard.adminTitle}
             </p>
           </div>
-          <Button onClick={() => router.push('/order')}>
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            {t.dashboard.placeNewOrder}
+          <Button onClick={() => router.push(user.role === 'admin' ? '/admin/salesmen' : '/order')}>
+            {user.role === 'admin' ? (
+              <Users className="mr-2 h-4 w-4" />
+            ) : (
+              <ShoppingCart className="mr-2 h-4 w-4" />
+            )}
+            {user.role === 'admin' ? t.dashboard.manageSalesmen : t.dashboard.placeNewOrder}
           </Button>
         </div>
         
         {/* Stats Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {user.role === 'admin' && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">{t.dashboard.totalSalesmen}</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{salesmanStats.total}</div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {user.role === 'admin' && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">{t.dashboard.activeSalesmen}</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{salesmanStats.active}</div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {user.role === 'admin' && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">{t.dashboard.inactiveSalesmen}</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{salesmanStats.inactive}</div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">{t.dashboard.totalOrders}</CardTitle>
@@ -163,6 +218,26 @@ export default function DashboardPage() {
           </Card>
         </div>
         
+        {user.role === 'admin' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{t.dashboard.quickActions}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button onClick={() => router.push('/admin/salesmen')} className="flex-1">
+                  <Users className="mr-2 h-4 w-4" />
+                  {t.dashboard.manageSalesmen}
+                </Button>
+                <Button variant="outline" onClick={() => router.push('/orders')} className="flex-1">
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                  {t.dashboard.viewAllOrders}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Quick Actions for Salesman */}
         {user.role === 'salesman' && (
           <Card>

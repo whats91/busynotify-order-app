@@ -11,13 +11,6 @@ import type {
   CustomerOtpRequestPayload,
   CustomerOtpVerifyPayload,
 } from '../../../shared/types';
-import {
-  getUserByUsername,
-  validateCredentials,
-} from '../mock-data/users';
-
-// In a real app, this would be replaced with API calls
-// Phase 1: Uses mock data
 
 export class AuthRepository {
   private sessions: Map<string, AuthSession> = new Map();
@@ -209,13 +202,41 @@ export class AuthRepository {
 
   /**
    * Validate user credentials
-   * @future Replace with: POST /api/auth/login
    */
   async validateLogin(credentials: AuthCredentials): Promise<User | null> {
-    // Simulate network delay
-    await this.simulateDelay();
-    
-    return validateCredentials(credentials.username, credentials.password);
+    try {
+      const response = await fetch('/api/auth/staff-login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(credentials),
+      });
+
+      if (response.status === 401) {
+        return null;
+      }
+
+      const data = (await response.json()) as {
+        success?: boolean;
+        error?: string;
+        data?: {
+          user?: User;
+        };
+      };
+
+      if (!response.ok || data.success !== true || !data.data?.user) {
+        throw new Error(data.error || 'Failed to validate staff credentials.');
+      }
+
+      return data.data.user;
+    } catch (error) {
+      console.error('Staff credential validation failed:', error);
+      throw error instanceof Error
+        ? error
+        : new Error('Failed to validate staff credentials.');
+    }
   }
 
   /**
@@ -272,9 +293,8 @@ export class AuthRepository {
     await this.simulateDelay();
     
     const users = [
-      { id: 'usr_001', username: 'admin', name: 'Admin User', role: 'admin' as const },
+      { id: 'usr_admin', username: 'admin', name: 'Admin User', role: 'admin' as const },
       { id: 'usr_002', username: 'customer', name: 'Rahul Sharma', role: 'customer' as const },
-      { id: 'usr_003', username: 'salesman', name: 'Vikram Singh', role: 'salesman' as const },
     ];
     
     const user = users.find(u => u.id === id);

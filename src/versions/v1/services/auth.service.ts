@@ -44,7 +44,7 @@ export class AuthService {
     } catch (error) {
       return {
         success: false,
-        error: 'An error occurred during login',
+        error: error instanceof Error ? error.message : 'An error occurred during login',
       };
     }
   }

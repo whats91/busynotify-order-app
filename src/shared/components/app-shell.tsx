@@ -19,6 +19,7 @@ import {
   ChevronsRight,
   Menu,
   Package,
+  Users,
 } from 'lucide-react';
 import { useAuthStore, useCartStore } from '../lib/stores';
 import { useTranslation } from '../lib/language-context';
@@ -34,6 +35,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ShoppingCart,
   ClipboardList,
   Package,
+  Users,
 };
 
 const SIDEBAR_STORAGE_KEY = 'busy-notify-sidebar-collapsed';
