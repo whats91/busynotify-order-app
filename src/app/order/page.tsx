@@ -1,0 +1,806 @@
+// =====================================================
+// ORDER PAGE - Product Listing with Pagination and Cart
+// =====================================================
+
+'use client';
+
+import React, { useEffect, useState, Suspense, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { 
+  ShoppingCart, 
+  Search, 
+  Plus, 
+  Minus, 
+  Trash2, 
+  Check, 
+  ChevronsUpDown,
+  Package,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
+import { 
+  useAuthStore, 
+  useCartStore, 
+  useHasHydrated,
+  useCompanyStore,
+  useProductStore,
+  usePaginationStore,
+  fetchProducts,
+} from '@/shared/lib/stores';
+import { useTranslation } from '@/shared/lib/language-context';
+import { AppShell } from '@/shared/components/app-shell';
+import { formatCurrency } from '@/shared/components/format-currency';
+import { useSetFooterContent, useSetHeaderActions } from '@/shared/lib/header-action-context';
+import { FooterBar, MobileCartFooter } from '@/shared/components/footer-bar';
+import { customerService, orderService } from '@/versions/v1/services';
+import type { ProductDisplay, Customer } from '@/shared/types';
+
+// Header Actions Component - Renders in AppShell header
+function OrderHeaderActions({ 
+  totalItems, 
+  onOpenCart, 
+  onClearCart 
+}: { 
+  totalItems: number; 
+  onOpenCart: () => void;
+  onClearCart: () => void;
+}) {
+  const t = useTranslation();
+  
+  return (
+    <div className="flex items-center gap-2">
+      {totalItems > 0 && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs text-destructive hover:text-destructive hidden sm:flex"
+          onClick={onClearCart}
+        >
+          Clear
+        </Button>
+      )}
+      <Button onClick={onOpenCart} className="relative" size="sm">
+        <ShoppingCart className="mr-2 h-4 w-4" />
+        {t.common.cart}
+        {totalItems > 0 && (
+          <Badge className="absolute -right-2 -top-2 h-5 w-5 rounded-full p-0 flex items-center justify-center">
+            {totalItems}
+          </Badge>
+        )}
+      </Button>
+    </div>
+  );
+}
+
+// Inner content component that sets header actions (must be inside AppShell)
+function OrderPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const showCart = searchParams.get('cart') === 'true';
+  
+  const { user, isAuthenticated } = useAuthStore();
+  const hasHydrated = useHasHydrated();
+  const { selectedCompany } = useCompanyStore();
+  const { 
+    products, 
+    isLoading: productsLoading, 
+    error: productsError,
+    setProducts,
+    setLoading: setProductsLoading,
+    setError: setProductsError,
+    lastCompanyId,
+    lastFinancialYear,
+  } = useProductStore();
+  const {
+    items,
+    customerId,
+    customerName,
+    totalItems,
+    subtotal,
+    tax,
+    total,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    setCustomer,
+    clearCustomer,
+  } = useCartStore();
+  const { pageSize } = usePaginationStore();
+  const t = useTranslation();
+  
+  // Local state
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showCartDialog, setShowCartDialog] = useState(showCart);
+  const [showCustomerSelect, setShowCustomerSelect] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [currentPage, setLocalCurrentPage] = useState(1);
+
+  // Determine if we need to load products - simple check using store state
+  const needsToLoadProducts = useMemo(() => {
+    if (!selectedCompany) return false;
+    // Need to load if the company changed
+    return lastCompanyId !== selectedCompany.companyId || 
+           lastFinancialYear !== selectedCompany.financialYear;
+  }, [selectedCompany, lastCompanyId, lastFinancialYear]);
+
+  // Show loading if: we're currently loading OR we need to load and haven't errored
+  const isLoadingProducts = productsLoading || (needsToLoadProducts && !productsError);
+
+  // Calculate total pages and paginated products
+  const filteredProducts = useMemo(() => {
+    if (!selectedCompany) {
+      return [];
+    }
+
+    return products.filter(p => {
+      const matchesSearch = !searchQuery || 
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.groupName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.hsnCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.productId.toString().includes(searchQuery);
+      return matchesSearch;
+    });
+  }, [products, searchQuery, selectedCompany]);
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  }, [filteredProducts.length, pageSize]);
+
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
+
+  // Calculate display indices
+  const startIndex = filteredProducts.length > 0 ? ((currentPage - 1) * pageSize) + 1 : 0;
+  const endIndex = Math.min(currentPage * pageSize, filteredProducts.length);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setLocalCurrentPage(1);
+  }, [searchQuery]);
+
+  // Header actions
+  const headerActions = useMemo(() => (
+    <OrderHeaderActions
+      totalItems={totalItems}
+      onOpenCart={() => setShowCartDialog(true)}
+      onClearCart={clearCart}
+    />
+  ), [totalItems, clearCart]);
+
+  useSetHeaderActions(headerActions);
+
+  const handlePageChange = useCallback((page: number) => {
+    setLocalCurrentPage(page);
+  }, []);
+
+  const hasPaginationFooter = filteredProducts.length > 0 && !isLoadingProducts;
+
+  const pageFooter = useMemo(() => {
+    if (!hasPaginationFooter && totalItems === 0) {
+      return null;
+    }
+
+    return (
+      <>
+        {hasPaginationFooter ? (
+          <FooterBar
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredProducts.length}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={handlePageChange}
+            isMobile={false}
+          />
+        ) : null}
+
+        {totalItems > 0 ? (
+          <MobileCartFooter
+            totalItems={totalItems}
+            total={total}
+            onClearCart={clearCart}
+            onViewCart={() => setShowCartDialog(true)}
+            formatCurrency={formatCurrency}
+          />
+        ) : hasPaginationFooter ? (
+          <FooterBar
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredProducts.length}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={handlePageChange}
+            isMobile={true}
+          />
+        ) : null}
+      </>
+    );
+  }, [
+    clearCart,
+    currentPage,
+    endIndex,
+    filteredProducts.length,
+    handlePageChange,
+    hasPaginationFooter,
+    startIndex,
+    total,
+    totalItems,
+    totalPages,
+  ]);
+
+  useSetFooterContent(pageFooter);
+
+  // Load products when company changes
+  const loadProducts = useCallback(async () => {
+    if (!selectedCompany) return;
+    
+    const companyId = selectedCompany.companyId;
+    const financialYear = selectedCompany.financialYear;
+    
+    // Skip if already loaded for this exact company
+    if (lastCompanyId === companyId && lastFinancialYear === financialYear && products.length > 0) {
+      return;
+    }
+    
+    setProductsLoading(true);
+    setProductsError(null);
+    
+    try {
+      const result = await fetchProducts(companyId, financialYear);
+      
+      if (result.success && result.data && result.rawData && result.apiResponse) {
+        setProducts(result.data, result.rawData, result.apiResponse, selectedCompany);
+      } else {
+        setProductsError(result.error || 'Failed to load products');
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      setProductsError('Failed to load products');
+    }
+    // Note: setProducts and setProductsError already set isLoading to false
+  }, [selectedCompany, lastCompanyId, lastFinancialYear, products.length, setProducts, setProductsLoading, setProductsError]);
+
+  // Auth check
+  useEffect(() => {
+    if (!hasHydrated) return;
+    
+    const timer = setTimeout(() => {
+      if (!isAuthenticated || !user) {
+        window.location.href = '/login';
+      }
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }, [hasHydrated, isAuthenticated, user]);
+  
+  useEffect(() => {
+    if (showCart) {
+      setShowCartDialog(true);
+    }
+  }, [showCart]);
+
+  // Load products when company changes
+  useEffect(() => {
+    if (selectedCompany && isAuthenticated) {
+      loadProducts();
+    }
+  }, [selectedCompany, isAuthenticated, loadProducts]);
+  
+  // Load customers for salesman
+  useEffect(() => {
+    const loadCustomers = async () => {
+      if (user?.role === 'salesman') {
+        try {
+          const customersData = await customerService.getAllCustomers();
+          setCustomers(customersData);
+        } catch (error) {
+          console.error('Failed to load customers:', error);
+        }
+      }
+    };
+    
+    if (isAuthenticated && user) {
+      loadCustomers();
+    }
+  }, [isAuthenticated, user]);
+  
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.phone.includes(customerSearch)
+  );
+
+  const convertToCartProduct = (product: ProductDisplay) => ({
+    id: product.id,
+    sku: product.hsnCode,
+    name: product.name,
+    description: '',
+    price: product.price,
+    currency: 'INR',
+    unit: product.unit,
+    category: product.groupName,
+    stock: product.stock,
+    isActive: true,
+  });
+
+  const handleAddToCart = (product: ProductDisplay) => {
+    const cartProduct = convertToCartProduct(product);
+    addItem(cartProduct, 1, product.taxRate);
+  };
+  
+  const handlePlaceOrder = async () => {
+    if (items.length === 0) return;
+
+    if (!selectedCompany) {
+      toast({
+        variant: 'destructive',
+        title: 'Unable to place order',
+        description: 'Select a company before placing an order.',
+      });
+      return;
+    }
+    
+    if (user?.role === 'salesman' && !customerId) {
+      setShowCustomerSelect(true);
+      toast({
+        variant: 'destructive',
+        title: 'Customer required',
+        description: 'Select a customer before placing the order.',
+      });
+      return;
+    }
+    
+    const orderCustomerId = user?.role === 'customer' ? user.id : customerId;
+    const orderCustomerName = user?.role === 'customer' ? user.name : customerName;
+    
+    setIsPlacingOrder(true);
+    
+    try {
+      const result = await orderService.createOrder({
+        companyId: selectedCompany?.companyId,
+        financialYear: selectedCompany?.financialYear,
+        customerId: orderCustomerId || '',
+        customerName: orderCustomerName || '',
+        items: items.map(item => ({
+          productId: item.product.id,
+          productName: item.product.name,
+          productSku: item.product.sku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxRate: item.taxRate,
+        })),
+        createdBy: user!.id,
+        createdByRole: user!.role as 'customer' | 'salesman' | 'admin',
+      });
+      
+      if (result.success) {
+        clearCart();
+        if (user?.role === 'salesman') {
+          clearCustomer();
+        }
+        setOrderSuccess(true);
+        setShowCartDialog(false);
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Order not placed',
+          description: result.error || 'The order could not be created. Please try again.',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to place order:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Order request failed',
+        description: error instanceof Error ? error.message : 'Failed to place order. Please try again.',
+      });
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+
+  if (!hasHydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  
+  return (
+    <>
+      <section className="flex min-h-full flex-col bg-background">
+        <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="mx-auto w-full max-w-7xl px-4 py-3 sm:px-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search products by name, HSN, group, or ID"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-10 rounded-xl border-0 bg-muted/60 pl-9 shadow-none"
+                disabled={!selectedCompany || isLoadingProducts}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="mx-auto flex w-full max-w-7xl flex-1 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="w-full rounded-2xl border bg-card shadow-sm">
+            <div className="p-4 sm:p-5">
+              {!selectedCompany ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">Select a company from the header to load products.</p>
+                </div>
+              ) : productsError ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-center">
+                  <AlertCircle className="h-8 w-8 text-destructive" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-destructive">Unable to load products</p>
+                    <p className="text-sm text-muted-foreground">{productsError}</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={loadProducts}>
+                    Retry
+                  </Button>
+                </div>
+              ) : isLoadingProducts ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Loading products...</p>
+                </div>
+              ) : products.length === 0 ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
+                  <Package className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">No products available for this company.</p>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
+                  <Search className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">No products match the current search.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                  {paginatedProducts.map((product) => {
+                    const cartItem = items.find(i => i.product.id === product.id);
+                    const quantityInCart = cartItem?.quantity || 0;
+
+                    return (
+                      <Card
+                        key={product.id}
+                        className="overflow-hidden rounded-xl border-border/80 shadow-none transition-colors hover:border-border"
+                      >
+                        <CardContent className="flex h-full flex-col gap-3 p-3">
+                          <div className="space-y-1">
+                            <p className="line-clamp-2 min-h-10 text-sm font-medium leading-5">
+                              {product.name}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {product.productId} • {product.unit}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">{formatCurrency(product.price)}</p>
+                              {product.salesPrice > 0 && product.mrp > 0 && product.mrp !== product.salesPrice ? (
+                                <p
+                                  className={cn(
+                                    'text-[10px] text-muted-foreground',
+                                    product.mrp > product.salesPrice ? 'line-through' : undefined
+                                  )}
+                                >
+                                  MRP {formatCurrency(product.mrp)}
+                                </p>
+                              ) : null}
+                            </div>
+                            <Badge
+                              variant={product.stock > 0 ? 'default' : 'secondary'}
+                              className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+                            >
+                              {product.stock > 0 ? product.stock : 'Out'}
+                            </Badge>
+                          </div>
+
+                          <p className="line-clamp-1 text-[11px] text-muted-foreground">
+                            {product.groupName} • {product.taxRate}% tax
+                          </p>
+
+                          <div className="mt-auto">
+                            {quantityInCart > 0 ? (
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-lg"
+                                    onClick={() => updateQuantity(cartItem?.id || '', quantityInCart - 1)}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-8 text-center text-sm font-medium">{quantityInCart}</span>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8 rounded-lg"
+                                    onClick={() => handleAddToCart(product)}
+                                    disabled={product.stock <= quantityInCart}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-lg text-destructive"
+                                  onClick={() => removeItem(cartItem?.id || '')}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                className="h-9 w-full rounded-lg text-xs"
+                                size="sm"
+                                onClick={() => handleAddToCart(product)}
+                                disabled={product.stock === 0}
+                              >
+                                <Plus className="mr-1 h-3 w-3" />
+                                {t.order.addToCart}
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Cart Dialog */}
+      <Dialog open={showCartDialog} onOpenChange={setShowCartDialog}>
+        <DialogContent className="flex h-[calc(100dvh-1.5rem)] max-w-lg flex-col overflow-hidden p-0 sm:h-[90vh] sm:max-h-[44rem]">
+          <DialogHeader className="shrink-0 border-b px-4 py-4 text-left sm:px-6">
+            <DialogTitle>{t.cart.title}</DialogTitle>
+            <DialogDescription>
+              {totalItems} {t.cart.items}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {items.length === 0 ? (
+            <div className="flex-1 px-4 py-8 text-center text-muted-foreground sm:px-6">
+              {t.cart.empty}
+            </div>
+          ) : (
+            <>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+                <div className="space-y-4 px-4 py-4 sm:px-6">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex items-center gap-4 rounded-lg border p-3">
+                      <div className="h-12 w-12 rounded bg-muted flex items-center justify-center">
+                        <Package className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{item.product.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatCurrency(item.unitPrice)} × {item.quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span className="w-6 text-center text-sm">{item.quantity}</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          disabled={item.quantity >= item.product.stock}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <p className="font-medium w-20 text-right">
+                        {formatCurrency(item.totalPrice)}
+                      </p>
+                    </div>
+                  ))}
+                  
+                  {user?.role === 'salesman' && (
+                    <Popover open={showCustomerSelect} onOpenChange={setShowCustomerSelect}>
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">
+                          {t.cart.orderFor}
+                        </div>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-between">
+                            {customerName || t.order.selectCustomer}
+                            <ChevronsUpDown className="ml-2 h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                      </div>
+                      <PopoverContent className="w-80 p-0" align="start">
+                        <Command>
+                          <CommandInput
+                            placeholder={t.order.searchCustomer}
+                            value={customerSearch}
+                            onValueChange={setCustomerSearch}
+                          />
+                          <CommandList>
+                            <CommandEmpty>No customer found.</CommandEmpty>
+                            <CommandGroup>
+                              {filteredCustomers.map((customer) => (
+                                <CommandItem
+                                  key={customer.id}
+                                  value={customer.id}
+                                  onSelect={() => {
+                                    setCustomer(customer.id, customer.name);
+                                    setShowCustomerSelect(false);
+                                    setCustomerSearch('');
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      customerId === customer.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span>{customer.name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {customer.phone} • {customer.city}
+                                    </span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.cart.subtotal}</span>
+                      <span>{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t.cart.tax}</span>
+                      <span>{formatCurrency(tax)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 border-t bg-background/95 px-4 py-4 backdrop-blur sm:px-6">
+                <div className="mb-4 flex items-center justify-between rounded-xl border bg-muted/30 px-4 py-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {t.cart.grandTotal}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {totalItems} {t.cart.items}
+                    </p>
+                  </div>
+                  <p className="text-lg font-semibold">{formatCurrency(total)}</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={clearCart} className="flex-1">
+                    {t.cart.clearCart}
+                  </Button>
+                  <Button 
+                    onClick={handlePlaceOrder} 
+                    className="flex-1"
+                    disabled={isPlacingOrder || (user?.role === 'salesman' && !customerId)}
+                  >
+                    {isPlacingOrder ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Placing...
+                      </>
+                    ) : (
+                      t.cart.placeOrder
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Order Success Dialog */}
+      <Dialog open={orderSuccess} onOpenChange={setOrderSuccess}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-green-600">{t.cart.orderSuccess}</DialogTitle>
+            <DialogDescription>
+              {t.cart.orderSuccessMessage}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => {
+              setOrderSuccess(false);
+              router.push('/orders');
+            }}>
+              {t.dashboard.viewAllOrders}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function OrderPageContent() {
+  return (
+    <AppShell contentContainerClassName="max-w-none px-0 py-0 lg:px-0 lg:py-0">
+      <OrderPageInner />
+    </AppShell>
+  );
+}
+
+export default function OrderPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <OrderPageContent />
+    </Suspense>
+  );
+}

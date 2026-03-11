@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build / Next
+.next/
+out/
+build/
+dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.swo
+
+# Prisma
+prisma/migrations/**/migration_lock.toml
+
+# Database files (don't commit local DBs)
+*.db
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
