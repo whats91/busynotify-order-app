@@ -6,6 +6,13 @@ import type { Customer, CustomerSummary } from '../../../shared/types';
 import { customerRepository } from '../repositories/customer.repository';
 
 export class CustomerService {
+  async getCustomersByCompany(companyId: number, financialYear: string): Promise<Customer[]> {
+    return customerRepository.findAllByCompany({
+      companyId,
+      financialYear,
+    });
+  }
+
   /**
    * Get all customers
    */

@@ -1,32 +1,35 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { updateStoredOrderStatus } from '@/lib/server/order-db';
-import type { OrderStatus } from '@/shared/types';
+import { ORDER_STATUSES } from '@/shared/types';
 
 export const runtime = 'nodejs';
 
-interface UpdateOrderStatusBody {
-  status?: OrderStatus;
-}
+const updateOrderStatusSchema = z.object({
+  status: z.enum(ORDER_STATUSES),
+});
 
-export async function PATCH(
+async function handleStatusUpdate(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const body = (await request.json()) as UpdateOrderStatusBody;
     const { id } = await params;
+    const parsed = updateOrderStatusSchema.safeParse(await request.json());
 
-    if (!body.status) {
+    if (!parsed.success) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Order status is required.',
+          error:
+            parsed.error.issues[0]?.message ||
+            `Status is required. Allowed values: ${ORDER_STATUSES.join(', ')}.`,
         },
         { status: 400 }
       );
     }
 
-    const order = updateStoredOrderStatus(id, body.status);
+    const order = await updateStoredOrderStatus(id, parsed.data.status);
 
     if (!order) {
       return NextResponse.json(
@@ -52,4 +55,18 @@ export async function PATCH(
       { status: 500 }
     );
   }
+}
+
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  return handleStatusUpdate(request, context);
+}
+
+export async function PUT(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  return handleStatusUpdate(request, context);
 }

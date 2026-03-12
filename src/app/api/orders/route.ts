@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import {
   createStoredOrder,
   listStoredOrders,
 } from '@/lib/server/order-db';
+import { ORDER_STATUSES } from '@/shared/types';
 import type { OrderStatus } from '@/shared/types';
 
 export const runtime = 'nodejs';
@@ -25,22 +27,69 @@ interface CreateOrderBody {
   }>;
 }
 
+const orderStatusSchema = z.enum(ORDER_STATUSES);
+
+function parseStatuses(searchParams: URLSearchParams): {
+  statuses?: OrderStatus[];
+  error?: string;
+} {
+  const rawStatuses = searchParams
+    .getAll('status')
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (rawStatuses.length === 0 || rawStatuses.includes('all')) {
+    return {};
+  }
+
+  const uniqueStatuses = [...new Set(rawStatuses)];
+  const invalidStatuses = uniqueStatuses.filter(
+    (status) => !ORDER_STATUSES.includes(status as OrderStatus)
+  );
+
+  if (invalidStatuses.length > 0) {
+    return {
+      error: `Invalid status value(s): ${invalidStatuses.join(', ')}. Allowed values: ${ORDER_STATUSES.join(', ')}.`,
+    };
+  }
+
+  return {
+    statuses: uniqueStatuses.map((status) => orderStatusSchema.parse(status)),
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const customerId = searchParams.get('customerId') || undefined;
     const createdBy = searchParams.get('createdBy') || undefined;
-    const status = (searchParams.get('status') || undefined) as OrderStatus | undefined;
+    const { statuses, error } = parseStatuses(searchParams);
 
-    const orders = listStoredOrders({
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error,
+        },
+        { status: 400 }
+      );
+    }
+
+    const orders = await listStoredOrders({
       customerId,
       createdBy,
-      status,
+      status: statuses?.length === 1 ? statuses[0] : undefined,
+      statuses: statuses && statuses.length > 1 ? statuses : undefined,
     });
 
     return NextResponse.json({
       success: true,
       data: orders,
+      metadata: {
+        statuses: statuses ?? 'all',
+        count: orders.length,
+      },
     });
   } catch (error) {
     console.error('Failed to fetch orders:', error);
@@ -96,7 +145,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const order = createStoredOrder({
+    const order = await createStoredOrder({
       companyId: body.companyId,
       financialYear: body.financialYear,
       customerId: body.customerId,

@@ -19,6 +19,7 @@ import {
   ChevronsRight,
   Menu,
   Package,
+  SlidersHorizontal,
   Users,
 } from 'lucide-react';
 import { useAuthStore, useCartStore } from '../lib/stores';
@@ -35,6 +36,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ShoppingCart,
   ClipboardList,
   Package,
+  SlidersHorizontal,
   Users,
 };
 

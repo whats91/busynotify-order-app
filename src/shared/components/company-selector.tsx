@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Building2, Check, ChevronsUpDown, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,6 +27,9 @@ import { useAuthStore, useCompanyStore, useCustomerStore } from '../lib/stores';
 import type { Company } from '../types';
 
 let companiesRequest: Promise<void> | null = null;
+
+const getCompanyKey = (company: Pick<Company, 'companyId' | 'financialYear'>) =>
+  `${company.companyId}:${company.financialYear}`;
 
 interface CompanySelectorProps {
   collapsed?: boolean;
@@ -57,7 +60,6 @@ export function CompanySelector({
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
-  const hasAutoSelected = useRef(false);
   const canSwitchCompanies =
     user?.role !== 'customer' || companies.length > 1;
 
@@ -68,7 +70,7 @@ export function CompanySelector({
       return;
     }
 
-    if (companies.length > 0 || companiesRequest) {
+    if (companiesRequest) {
       return;
     }
 
@@ -101,19 +103,36 @@ export function CompanySelector({
     };
 
     companiesRequest = fetchCompanies();
-  }, [companies.length, setCompanies, setError, setLoading, user?.role]);
+  }, [setCompanies, setError, setLoading, user?.role]);
 
   useEffect(() => {
-    if (!_hasHydrated || hasAutoSelected.current) {
+    if (!_hasHydrated || companies.length === 0) {
       return;
     }
 
-    if (!selectedCompany && companies.length > 0) {
-      hasAutoSelected.current = true;
-      if (user?.role !== 'customer' || companies.length === 1) {
-        setSelectedCompany(companies[0]);
+    const matchedCompany = selectedCompany
+      ? companies.find((company) => getCompanyKey(company) === getCompanyKey(selectedCompany))
+      : null;
+
+    if (matchedCompany) {
+      if (
+        !selectedCompany ||
+        matchedCompany.companyName !== selectedCompany.companyName ||
+        matchedCompany.erpCode !== selectedCompany.erpCode
+      ) {
+        setSelectedCompany(matchedCompany);
       }
+      return;
     }
+
+    if (user?.role === 'customer' && companies.length > 1) {
+      if (selectedCompany) {
+        setSelectedCompany(null);
+      }
+      return;
+    }
+
+    setSelectedCompany(companies[0]);
   }, [_hasHydrated, companies, selectedCompany, setSelectedCompany, user?.role]);
 
   const handleCompanyChange = useCallback(async (companyId: string) => {

@@ -34,6 +34,13 @@ export const navigationItems: NavigationItem[] = [
     icon: 'Users',
     roles: ['admin'],
   },
+  {
+    id: 'product-configuration',
+    labelKey: 'navigation.productConfiguration',
+    href: '/admin/product-configuration',
+    icon: 'SlidersHorizontal',
+    roles: ['admin'],
+  },
 ];
 
 // Get navigation items for a specific role

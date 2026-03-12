@@ -2,7 +2,7 @@
 // CUSTOMER REPOSITORY - Data Access Layer for Customers
 // =====================================================
 
-import type { Customer, CustomerSummary } from '../../../shared/types';
+import type { Customer, CustomerApiResponse, CustomerListRequest, CustomerSummary } from '../../../shared/types';
 import {
   getAllCustomers,
   getCustomerById,
@@ -11,6 +11,28 @@ import {
 } from '../mock-data/customers';
 
 export class CustomerRepository {
+  async findAllByCompany(params: CustomerListRequest): Promise<Customer[]> {
+    const response = await fetch('/api/customers', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+
+    const data = (await response.json()) as CustomerApiResponse & {
+      error?: string;
+    };
+
+    if (!response.ok || data.success !== true || !Array.isArray(data.data)) {
+      throw new Error(data.error || 'Failed to fetch customers.');
+    }
+
+    return data.data;
+  }
+
   /**
    * Get all customers
    * @future Replace with: GET /api/customers

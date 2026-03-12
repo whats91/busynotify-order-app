@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,8 +40,27 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const salesmanCustomerOptions = useMemo(() => {
+    if (user?.role !== 'salesman') {
+      return [];
+    }
+
+    const seen = new Map<string, string>();
+
+    for (const order of orders) {
+      if (!seen.has(order.customerId)) {
+        seen.set(order.customerId, order.customerName);
+      }
+    }
+
+    return Array.from(seen.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }, [orders, user?.role]);
   
   useEffect(() => {
     // Only run after hydration is complete
@@ -60,12 +79,24 @@ export default function OrdersPage() {
   }, [hasHydrated, isAuthenticated, user]);
   
   useEffect(() => {
-    if (statusFilter === 'all') {
-      setFilteredOrders(orders);
-    } else {
-      setFilteredOrders(orders.filter(o => o.status === statusFilter));
+    const nextOrders = orders.filter((order) => {
+      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+      const matchesCustomer = customerFilter === 'all' || order.customerId === customerFilter;
+      return matchesStatus && matchesCustomer;
+    });
+
+    setFilteredOrders(nextOrders);
+  }, [customerFilter, orders, statusFilter]);
+
+  useEffect(() => {
+    if (
+      customerFilter !== 'all' &&
+      user?.role === 'salesman' &&
+      !orders.some((order) => order.customerId === customerFilter)
+    ) {
+      setCustomerFilter('all');
     }
-  }, [orders, statusFilter]);
+  }, [customerFilter, orders, user?.role]);
   
   const loadOrders = async () => {
     try {
@@ -134,7 +165,7 @@ export default function OrdersPage() {
         </div>
         
         {/* Filters */}
-        <div className="flex gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="Filter by status" />
@@ -149,6 +180,22 @@ export default function OrdersPage() {
               <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
+
+          {user.role === 'salesman' ? (
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+              <SelectTrigger className="w-full sm:w-64">
+                <SelectValue placeholder="Filter by customer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Customers</SelectItem>
+                {salesmanCustomerOptions.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
         </div>
         
         {/* Orders List */}

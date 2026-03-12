@@ -150,7 +150,7 @@ export default function StaffLoginPage() {
                   Admin access
                 </li>
                 <li>
-                  Salesman accounts are created by the admin from the dashboard.
+                  Salesman accounts are created by the admin from the dashboard and stored in SQLite.
                 </li>
               </ul>
             </div>

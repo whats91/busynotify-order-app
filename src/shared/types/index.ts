@@ -66,17 +66,46 @@ export interface CompanyApiResponse {
   };
 }
 
+export interface CustomerListRequest {
+  companyId: number;
+  financialYear: string;
+}
+
 // ==================== CUSTOMER ====================
+
+export interface ApiCustomer {
+  customer_id: number;
+  customer_name: string;
+  group_id: number;
+  group_name: string;
+  mobile_number: string;
+  whatsapp_number: string;
+  address_line_1: string;
+  address_line_2: string;
+  address_line_3: string;
+  address_line_4: string;
+  pin_code: string;
+  country: string;
+  state: string;
+  gst_number: string;
+  pan_number: string;
+  station: string;
+  opening_balance: number;
+  balance: number;
+  closing_balance: number;
+}
 
 export interface Customer {
   id: string;
   name: string;
   email: string;
   phone: string;
+  whatsappNumber?: string;
   address: string;
   city: string;
   state: string;
   pincode: string;
+  groupName?: string;
   gstNumber?: string;
   creditLimit?: number;
   outstandingBalance?: number;
@@ -87,6 +116,19 @@ export interface CustomerSummary {
   name: string;
   phone: string;
   city: string;
+}
+
+export interface CustomerApiResponse {
+  success: boolean;
+  data: Customer[];
+  metadata?: {
+    companyId: number;
+    companyCode: string;
+    financialYear: string;
+    rowCount: number;
+    executionTime?: string;
+    executedAt: string;
+  };
 }
 
 // ==================== SALESMAN ====================
@@ -173,6 +215,54 @@ export interface ProductDisplay {
   _fullData?: ApiProduct;
 }
 
+export const PRODUCT_FIELD_KEYS = [
+  'name',
+  'productId',
+  'productAlias',
+  'printName',
+  'unit',
+  'price',
+  'salesPrice',
+  'purchasePrice',
+  'mrp',
+  'stock',
+  'groupName',
+  'groupId',
+  'mcName',
+  'mcCode',
+  'taxName',
+  'taxId',
+  'hsnCode',
+  'taxRate',
+  'apiPrice',
+  'salesDiscount',
+  'salesMarkup',
+  'purchaseDiscount',
+  'descriptionLine1',
+  'descriptionLine2',
+  'descriptionLine3',
+  'descriptionLine4',
+  'createdBy',
+  'creationTime',
+  'modifiedBy',
+  'modificationTime',
+] as const;
+
+export type ProductFieldKey = (typeof PRODUCT_FIELD_KEYS)[number];
+
+export interface ProductFieldConfig {
+  fieldKey: ProductFieldKey;
+  label: string;
+  description?: string;
+  isVisible: boolean;
+  sortOrder: number;
+}
+
+export interface UpdateProductFieldConfigPayload {
+  fieldKey: ProductFieldKey;
+  isVisible: boolean;
+}
+
 // Legacy Product type (for backward compatibility)
 export interface Product {
   id: string;
@@ -230,7 +320,16 @@ export interface Cart {
 
 // ==================== ORDER ====================
 
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+export const ORDER_STATUSES = [
+  'pending',
+  'confirmed',
+  'processing',
+  'shipped',
+  'delivered',
+  'cancelled',
+] as const;
+
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export interface OrderItem {
   id: string;
@@ -350,6 +449,10 @@ export interface TranslationSchema {
     selectCustomer: string;
     searchCustomer: string;
     noCustomerSelected: string;
+    customerRequiredTitle: string;
+    customerRequiredDescription: string;
+    loadingCustomers: string;
+    noCustomersAvailable: string;
     products: string;
     addToCart: string;
     addedToCart: string;
@@ -394,6 +497,7 @@ export interface TranslationSchema {
     newOrder: string;
     orders: string;
     salesmen: string;
+    productConfiguration: string;
     customers: string;
     products: string;
     reports: string;

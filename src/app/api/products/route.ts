@@ -3,6 +3,43 @@
 // =====================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+
+const requestSchema = z.object({
+  companyId: z.coerce.number().int().positive('companyId is required'),
+  financialYear: z.coerce.string().trim().min(1, 'financialYear is required'),
+});
+
+interface ExternalApiErrorResponse {
+  success?: boolean;
+  error?: string;
+}
+
+function parseJsonSafely<T>(value: string): T | null {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+function extractApiError(
+  payload: ExternalApiErrorResponse | null,
+  fallback: string,
+  status?: number
+): string {
+  const message = payload?.error?.trim();
+
+  if (message) {
+    return message;
+  }
+
+  if (status) {
+    return `${fallback} (status ${status})`;
+  }
+
+  return fallback;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,13 +53,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get companyId and financialYear from request body
-    const body = await request.json();
-    const { companyId, financialYear } = body;
+    const parsed = requestSchema.safeParse(await request.json());
 
-    if (!companyId || !financialYear) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'companyId and financialYear are required' },
+        {
+          success: false,
+          error: parsed.error.issues[0]?.message || 'companyId and financialYear are required',
+        },
         { status: 400 }
       );
     }
@@ -31,22 +69,45 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({
-        authToken: authToken,
-        companyId: companyId,
-        financialYear: financialYear,
+        authToken,
+        companyId: parsed.data.companyId,
+        financialYear: parsed.data.financialYear,
       }),
+      cache: 'no-store',
     });
 
+    const rawResponse = await response.text();
+    const data = parseJsonSafely<ExternalApiErrorResponse | Record<string, unknown>>(rawResponse);
+
     if (!response.ok) {
+      console.warn('Product API request failed', {
+        companyId: parsed.data.companyId,
+        financialYear: parsed.data.financialYear,
+        status: response.status,
+      });
       return NextResponse.json(
-        { success: false, error: 'Failed to fetch products' },
+        {
+          success: false,
+          error: extractApiError(
+            data as ExternalApiErrorResponse | null,
+            'Failed to fetch products',
+            response.status
+          ),
+        },
         { status: response.status }
       );
     }
 
-    const data = await response.json();
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid product API response' },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching products:', error);

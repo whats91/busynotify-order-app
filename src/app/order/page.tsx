@@ -60,8 +60,136 @@ import { AppShell } from '@/shared/components/app-shell';
 import { formatCurrency } from '@/shared/components/format-currency';
 import { useSetFooterContent, useSetHeaderActions } from '@/shared/lib/header-action-context';
 import { FooterBar, MobileCartFooter } from '@/shared/components/footer-bar';
-import { customerService, orderService } from '@/versions/v1/services';
-import type { ProductDisplay, Customer } from '@/shared/types';
+import { defaultProductFieldConfig } from '@/shared/config';
+import { customerService, orderService, productConfigService } from '@/versions/v1/services';
+import type { ProductDisplay, Customer, ProductFieldConfig, ProductFieldKey } from '@/shared/types';
+
+const headingFieldKeys: ProductFieldKey[] = ['name', 'printName', 'productAlias'];
+const metaFieldKeys: ProductFieldKey[] = [
+  'productId',
+  'unit',
+  'hsnCode',
+  'groupName',
+  'groupId',
+  'taxName',
+  'taxRate',
+  'taxId',
+  'mcName',
+  'mcCode',
+];
+const priceFieldKeys: ProductFieldKey[] = [
+  'price',
+  'salesPrice',
+  'mrp',
+  'apiPrice',
+  'purchasePrice',
+];
+const detailFieldKeys: ProductFieldKey[] = [
+  'stock',
+  'salesDiscount',
+  'salesMarkup',
+  'purchaseDiscount',
+  'descriptionLine1',
+  'descriptionLine2',
+  'descriptionLine3',
+  'descriptionLine4',
+  'createdBy',
+  'creationTime',
+  'modifiedBy',
+  'modificationTime',
+];
+
+function hasDisplayValue(value: string | null): boolean {
+  return value !== null && value.trim().length > 0;
+}
+
+function formatNumericValue(value: number | null | undefined): string | null {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return null;
+  }
+
+  return String(value);
+}
+
+function formatCurrencyValue(value: number | null | undefined): string | null {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return null;
+  }
+
+  return formatCurrency(value);
+}
+
+function getProductFieldDisplayValue(
+  product: ProductDisplay,
+  fieldKey: ProductFieldKey
+): string | null {
+  const raw = product._fullData;
+
+  switch (fieldKey) {
+    case 'name':
+      return product.name;
+    case 'productId':
+      return String(product.productId);
+    case 'productAlias':
+      return raw?.product_alias?.trim() || null;
+    case 'printName':
+      return raw?.product_print_name?.trim() || null;
+    case 'unit':
+      return product.unit || null;
+    case 'price':
+      return formatCurrencyValue(product.price);
+    case 'salesPrice':
+      return formatCurrencyValue(product.salesPrice);
+    case 'purchasePrice':
+      return formatCurrencyValue(raw?.product_purchase_price);
+    case 'mrp':
+      return formatCurrencyValue(product.mrp);
+    case 'stock':
+      return formatNumericValue(product.stock);
+    case 'groupName':
+      return product.groupName || null;
+    case 'groupId':
+      return formatNumericValue(raw?.product_group_id);
+    case 'mcName':
+      return raw?.product_mc_name?.trim() || null;
+    case 'mcCode':
+      return formatNumericValue(raw?.product_mc_code);
+    case 'taxName':
+      return product.taxName || null;
+    case 'taxId':
+      return formatNumericValue(raw?.product_tax_id);
+    case 'hsnCode':
+      return product.hsnCode || null;
+    case 'taxRate':
+      return `${product.taxRate}%`;
+    case 'apiPrice':
+      return formatCurrencyValue(raw?.product_price);
+    case 'salesDiscount':
+      return formatNumericValue(raw?.product_sales_discount);
+    case 'salesMarkup':
+      return formatNumericValue(raw?.product_sales_markup);
+    case 'purchaseDiscount':
+      return formatNumericValue(raw?.product_purchase_discount);
+    case 'descriptionLine1':
+      return raw?.product_description_line1?.trim() || null;
+    case 'descriptionLine2':
+      return raw?.product_description_line2?.trim() || null;
+    case 'descriptionLine3':
+      return raw?.product_description_line3?.trim() || null;
+    case 'descriptionLine4':
+      return raw?.product_description_line4?.trim() || null;
+    case 'createdBy':
+      return raw?.product_created_by?.trim() || null;
+    case 'creationTime':
+      return raw?.product_creation_time?.trim() || null;
+    case 'modifiedBy':
+      return raw?.product_modified_by?.trim() || null;
+    case 'modificationTime':
+      return raw?.product_modification_time?.trim() || null;
+    default:
+      return null;
+  }
+}
 
 // Header Actions Component - Renders in AppShell header
 function OrderHeaderActions({ 
@@ -139,6 +267,8 @@ function OrderPageInner() {
   
   // Local state
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customersError, setCustomersError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCartDialog, setShowCartDialog] = useState(showCart);
   const [showCustomerSelect, setShowCustomerSelect] = useState(false);
@@ -146,6 +276,10 @@ function OrderPageInner() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [currentPage, setLocalCurrentPage] = useState(1);
+  const [productFieldConfig, setProductFieldConfig] = useState<ProductFieldConfig[]>(
+    defaultProductFieldConfig
+  );
+  const isSalesman = user?.role === 'salesman';
 
   // Determine if we need to load products - simple check using store state
   const needsToLoadProducts = useMemo(() => {
@@ -177,6 +311,30 @@ function OrderPageInner() {
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   }, [filteredProducts.length, pageSize]);
+
+  const productFieldVisibility = useMemo(() => {
+    const visibilityMap = new Map<ProductFieldKey, boolean>(
+      defaultProductFieldConfig.map((field) => [field.fieldKey, field.isVisible])
+    );
+
+    for (const field of productFieldConfig) {
+      visibilityMap.set(field.fieldKey, field.isVisible);
+    }
+
+    return visibilityMap;
+  }, [productFieldConfig]);
+
+  const productFieldLabels = useMemo(() => {
+    const labelMap = new Map<ProductFieldKey, string>(
+      defaultProductFieldConfig.map((field) => [field.fieldKey, field.label])
+    );
+
+    for (const field of productFieldConfig) {
+      labelMap.set(field.fieldKey, field.label);
+    }
+
+    return labelMap;
+  }, [productFieldConfig]);
 
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -319,29 +477,89 @@ function OrderPageInner() {
       loadProducts();
     }
   }, [selectedCompany, isAuthenticated, loadProducts]);
-  
+
+  const loadCustomers = useCallback(async () => {
+    if (!selectedCompany || !isSalesman) {
+      setCustomers([]);
+      setCustomersError(null);
+      setCustomersLoading(false);
+      return;
+    }
+
+    setCustomersLoading(true);
+    setCustomersError(null);
+    setCustomerSearch('');
+
+    try {
+      const customersData = await customerService.getCustomersByCompany(
+        selectedCompany.companyId,
+        selectedCompany.financialYear
+      );
+
+      setCustomers(customersData);
+
+      if (customerId && !customersData.some((customer) => customer.id === customerId)) {
+        clearCustomer();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load customers.';
+      console.error('Failed to load customers:', error);
+      setCustomers([]);
+      setCustomersError(message);
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, [clearCustomer, customerId, isSalesman, selectedCompany]);
+
   // Load customers for salesman
   useEffect(() => {
-    const loadCustomers = async () => {
-      if (user?.role === 'salesman') {
-        try {
-          const customersData = await customerService.getAllCustomers();
-          setCustomers(customersData);
-        } catch (error) {
-          console.error('Failed to load customers:', error);
-        }
+    if (!isAuthenticated || !user) {
+      return;
+    }
+
+    if (isSalesman && selectedCompany) {
+      void loadCustomers();
+      return;
+    }
+
+    setCustomers([]);
+    setCustomersError(null);
+    setCustomersLoading(false);
+  }, [isAuthenticated, isSalesman, loadCustomers, selectedCompany, user]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated) {
+      return;
+    }
+
+    const loadProductFieldConfig = async () => {
+      try {
+        const config = await productConfigService.getProductFieldConfig();
+        setProductFieldConfig(config);
+      } catch (error) {
+        console.error('Failed to load product field configuration:', error);
+        setProductFieldConfig(defaultProductFieldConfig);
       }
     };
-    
-    if (isAuthenticated && user) {
-      loadCustomers();
-    }
-  }, [isAuthenticated, user]);
-  
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    c.phone.includes(customerSearch)
+
+    void loadProductFieldConfig();
+  }, [hasHydrated, isAuthenticated]);
+
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter((customer) => {
+        const query = customerSearch.toLowerCase();
+        return (
+          customer.name.toLowerCase().includes(query) ||
+          customer.phone.includes(customerSearch) ||
+          customer.whatsappNumber?.includes(customerSearch) ||
+          customer.groupName?.toLowerCase().includes(query)
+        );
+      }),
+    [customerSearch, customers]
   );
+
+  const canBrowseProducts = Boolean(selectedCompany) && (!isSalesman || Boolean(customerId));
 
   const convertToCartProduct = (product: ProductDisplay) => ({
     id: product.id,
@@ -453,15 +671,95 @@ function OrderPageInner() {
       <section className="flex min-h-full flex-col bg-background">
         <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <div className="mx-auto w-full max-w-7xl px-4 py-3 sm:px-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search products by name, HSN, group, or ID"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 rounded-xl border-0 bg-muted/60 pl-9 shadow-none"
-                disabled={!selectedCompany || isLoadingProducts}
-              />
+            <div className="space-y-3">
+              {isSalesman ? (
+                <div className="rounded-2xl border bg-muted/30 p-3">
+                  <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t.order.selectCustomer}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {customerName
+                          ? `Ordering for ${customerName}`
+                          : t.order.customerRequiredDescription}
+                      </p>
+                    </div>
+                    {customerName ? (
+                      <Badge variant="secondary" className="w-fit rounded-full px-3 py-1 text-xs">
+                        {customerName}
+                      </Badge>
+                    ) : null}
+                  </div>
+
+                  <Popover open={showCustomerSelect} onOpenChange={setShowCustomerSelect}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between rounded-xl"
+                        disabled={!selectedCompany || customersLoading}
+                      >
+                        {customersLoading
+                          ? t.order.loadingCustomers
+                          : customerName || t.order.selectCustomer}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[22rem] p-0" align="start">
+                      <Command>
+                        <CommandInput
+                          placeholder={t.order.searchCustomer}
+                          value={customerSearch}
+                          onValueChange={setCustomerSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            {customersLoading ? t.order.loadingCustomers : 'No customer found.'}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {filteredCustomers.map((customer) => (
+                              <CommandItem
+                                key={customer.id}
+                                value={`${customer.name} ${customer.phone} ${customer.groupName || ''}`}
+                                onSelect={() => {
+                                  setCustomer(customer.id, customer.name);
+                                  setShowCustomerSelect(false);
+                                  setCustomerSearch('');
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    customerId === customer.id ? 'opacity-100' : 'opacity-0'
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{customer.name}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {customer.phone}
+                                    {customer.city ? ` • ${customer.city}` : ''}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              ) : null}
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search products by name, HSN, group, or ID"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 rounded-xl border-0 bg-muted/60 pl-9 shadow-none"
+                  disabled={!canBrowseProducts || isLoadingProducts}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -472,7 +770,41 @@ function OrderPageInner() {
               {!selectedCompany ? (
                 <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
                   <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm font-medium">Select a company from the header to load products.</p>
+                  <p className="text-sm font-medium">
+                    Select a company from the sidebar to load products.
+                  </p>
+                </div>
+              ) : isSalesman && customersLoading ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">{t.order.loadingCustomers}</p>
+                </div>
+              ) : isSalesman && customersError ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-center">
+                  <AlertCircle className="h-8 w-8 text-destructive" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-destructive">Unable to load customers</p>
+                    <p className="text-sm text-muted-foreground">{customersError}</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => void loadCustomers()}>
+                    Retry
+                  </Button>
+                </div>
+              ) : isSalesman && customers.length === 0 ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
+                  <Package className="h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm font-medium">{t.order.noCustomersAvailable}</p>
+                </div>
+              ) : isSalesman && !customerId ? (
+                <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-center">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">{t.order.customerRequiredTitle}</p>
+                    <p className="max-w-md text-sm text-muted-foreground">
+                      {t.order.customerRequiredDescription}
+                    </p>
+                  </div>
+                  <Button onClick={() => setShowCustomerSelect(true)}>{t.order.selectCustomer}</Button>
                 </div>
               ) : productsError ? (
                 <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-center">
@@ -505,6 +837,160 @@ function OrderPageInner() {
                   {paginatedProducts.map((product) => {
                     const cartItem = items.find(i => i.product.id === product.id);
                     const quantityInCart = cartItem?.quantity || 0;
+                    const visibleValues = new Map<ProductFieldKey, string>();
+
+                    for (const field of defaultProductFieldConfig) {
+                      if (productFieldVisibility.get(field.fieldKey) !== true) {
+                        continue;
+                      }
+
+                      const value = getProductFieldDisplayValue(product, field.fieldKey);
+
+                      if (value && hasDisplayValue(value)) {
+                        visibleValues.set(field.fieldKey, value);
+                      }
+                    }
+
+                    const headingValue =
+                      headingFieldKeys
+                        .map((fieldKey) => visibleValues.get(fieldKey))
+                        .find((value) => hasDisplayValue(value || null)) || null;
+                    const usedFieldKeys = new Set<ProductFieldKey>();
+
+                    if (headingValue) {
+                      const headingKey = headingFieldKeys.find(
+                        (fieldKey) => visibleValues.get(fieldKey) === headingValue
+                      );
+
+                      if (headingKey) {
+                        usedFieldKeys.add(headingKey);
+                      }
+                    }
+
+                    const secondaryHeadingEntries = headingFieldKeys
+                      .filter((fieldKey) => !usedFieldKeys.has(fieldKey))
+                      .map((fieldKey) => {
+                        const value = visibleValues.get(fieldKey);
+                        if (!value) {
+                          return null;
+                        }
+
+                        usedFieldKeys.add(fieldKey);
+                        return {
+                          key: fieldKey,
+                          label: productFieldLabels.get(fieldKey) || fieldKey,
+                          value,
+                        };
+                      })
+                      .filter(
+                        (
+                          entry
+                        ): entry is { key: ProductFieldKey; label: string; value: string } =>
+                          entry !== null
+                      );
+
+                    const metaEntries = metaFieldKeys
+                      .map((fieldKey) => {
+                        const value = visibleValues.get(fieldKey);
+                        if (!value) {
+                          return null;
+                        }
+
+                        usedFieldKeys.add(fieldKey);
+                        return {
+                          key: fieldKey,
+                          label: productFieldLabels.get(fieldKey) || fieldKey,
+                          value,
+                        };
+                      })
+                      .filter(
+                        (
+                          entry
+                        ): entry is { key: ProductFieldKey; label: string; value: string } =>
+                          entry !== null
+                      );
+
+                    const primaryPriceEntry =
+                      priceFieldKeys
+                        .map((fieldKey) => {
+                          const value = visibleValues.get(fieldKey);
+                          if (!value) {
+                            return null;
+                          }
+
+                          return {
+                            key: fieldKey,
+                            label: productFieldLabels.get(fieldKey) || fieldKey,
+                            value,
+                          };
+                        })
+                        .find(
+                          (
+                            entry
+                          ): entry is { key: ProductFieldKey; label: string; value: string } =>
+                            entry !== null
+                        ) || null;
+
+                    if (primaryPriceEntry) {
+                      usedFieldKeys.add(primaryPriceEntry.key);
+                    }
+
+                    const secondaryPriceEntries = priceFieldKeys
+                      .filter((fieldKey) => fieldKey !== primaryPriceEntry?.key)
+                      .map((fieldKey) => {
+                        const value = visibleValues.get(fieldKey);
+                        if (!value) {
+                          return null;
+                        }
+
+                        usedFieldKeys.add(fieldKey);
+                        return {
+                          key: fieldKey,
+                          label: productFieldLabels.get(fieldKey) || fieldKey,
+                          value,
+                        };
+                      })
+                      .filter(
+                        (
+                          entry
+                        ): entry is { key: ProductFieldKey; label: string; value: string } =>
+                          entry !== null
+                      );
+
+                    const stockValue = visibleValues.get('stock');
+                    if (stockValue) {
+                      usedFieldKeys.add('stock');
+                    }
+
+                    const detailEntries = [
+                      ...detailFieldKeys,
+                      ...defaultProductFieldConfig
+                        .map((field) => field.fieldKey)
+                        .filter((fieldKey) => !usedFieldKeys.has(fieldKey)),
+                    ]
+                      .map((fieldKey) => {
+                        if (usedFieldKeys.has(fieldKey)) {
+                          return null;
+                        }
+
+                        const value = visibleValues.get(fieldKey);
+                        if (!value) {
+                          return null;
+                        }
+
+                        usedFieldKeys.add(fieldKey);
+                        return {
+                          key: fieldKey,
+                          label: productFieldLabels.get(fieldKey) || fieldKey,
+                          value,
+                        };
+                      })
+                      .filter(
+                        (
+                          entry
+                        ): entry is { key: ProductFieldKey; label: string; value: string } =>
+                          entry !== null
+                      );
 
                     return (
                       <Card
@@ -512,40 +998,79 @@ function OrderPageInner() {
                         className="overflow-hidden rounded-xl border-border/80 shadow-none transition-colors hover:border-border"
                       >
                         <CardContent className="flex h-full flex-col gap-3 p-3">
-                          <div className="space-y-1">
-                            <p className="line-clamp-2 min-h-10 text-sm font-medium leading-5">
-                              {product.name}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground">
-                              {product.productId} • {product.unit}
-                            </p>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold">{formatCurrency(product.price)}</p>
-                              {product.salesPrice > 0 && product.mrp > 0 && product.mrp !== product.salesPrice ? (
-                                <p
-                                  className={cn(
-                                    'text-[10px] text-muted-foreground',
-                                    product.mrp > product.salesPrice ? 'line-through' : undefined
-                                  )}
-                                >
-                                  MRP {formatCurrency(product.mrp)}
+                          {headingValue ? (
+                            <div className="space-y-1">
+                              <p className="line-clamp-2 min-h-10 text-sm font-medium leading-5">
+                                {headingValue}
+                              </p>
+                              {secondaryHeadingEntries.map((entry) => (
+                                <p key={entry.key} className="line-clamp-1 text-[11px] text-muted-foreground">
+                                  {entry.label}: {entry.value}
                                 </p>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {metaEntries.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {metaEntries.map((entry) => (
+                                <span
+                                  key={entry.key}
+                                  className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+                                >
+                                  {entry.label}: {entry.value}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {primaryPriceEntry || secondaryPriceEntries.length > 0 || stockValue ? (
+                            <div className="flex items-center justify-between gap-2">
+                              {primaryPriceEntry || secondaryPriceEntries.length > 0 ? (
+                                <div className="min-w-0">
+                                  {primaryPriceEntry ? (
+                                    <>
+                                      <p className="text-sm font-semibold">{primaryPriceEntry.value}</p>
+                                      <p className="text-[10px] text-muted-foreground">
+                                        {primaryPriceEntry.label}
+                                      </p>
+                                    </>
+                                  ) : null}
+                                  {secondaryPriceEntries.map((entry) => (
+                                    <p key={entry.key} className="text-[10px] text-muted-foreground">
+                                      {entry.label}: {entry.value}
+                                    </p>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div />
+                              )}
+                              {stockValue ? (
+                                <Badge
+                                  variant={product.stock > 0 ? 'default' : 'secondary'}
+                                  className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+                                >
+                                  {product.stock > 0 ? stockValue : 'Out'}
+                                </Badge>
                               ) : null}
                             </div>
-                            <Badge
-                              variant={product.stock > 0 ? 'default' : 'secondary'}
-                              className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
-                            >
-                              {product.stock > 0 ? product.stock : 'Out'}
-                            </Badge>
-                          </div>
+                          ) : null}
 
-                          <p className="line-clamp-1 text-[11px] text-muted-foreground">
-                            {product.groupName} • {product.taxRate}% tax
-                          </p>
+                          {detailEntries.length > 0 ? (
+                            <div className="space-y-1 rounded-xl bg-muted/20 p-2">
+                              {detailEntries.map((entry) => (
+                                <div
+                                  key={entry.key}
+                                  className="flex items-start justify-between gap-3 text-[11px]"
+                                >
+                                  <span className="text-muted-foreground">{entry.label}</span>
+                                  <span className="max-w-[60%] text-right break-words">
+                                    {entry.value}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
 
                           <div className="mt-auto">
                             {quantityInCart > 0 ? (
@@ -664,8 +1189,14 @@ function OrderPageInner() {
                           {t.cart.orderFor}
                         </div>
                         <PopoverTrigger asChild>
-                          <Button variant="outline" className="w-full justify-between">
-                            {customerName || t.order.selectCustomer}
+                          <Button
+                            variant="outline"
+                            className="w-full justify-between"
+                            disabled={customersLoading || !selectedCompany}
+                          >
+                            {customersLoading
+                              ? t.order.loadingCustomers
+                              : customerName || t.order.selectCustomer}
                             <ChevronsUpDown className="ml-2 h-4 w-4" />
                           </Button>
                         </PopoverTrigger>
@@ -678,12 +1209,14 @@ function OrderPageInner() {
                             onValueChange={setCustomerSearch}
                           />
                           <CommandList>
-                            <CommandEmpty>No customer found.</CommandEmpty>
+                            <CommandEmpty>
+                              {customersLoading ? t.order.loadingCustomers : 'No customer found.'}
+                            </CommandEmpty>
                             <CommandGroup>
                               {filteredCustomers.map((customer) => (
                                 <CommandItem
                                   key={customer.id}
-                                  value={customer.id}
+                                  value={`${customer.name} ${customer.phone} ${customer.groupName || ''}`}
                                   onSelect={() => {
                                     setCustomer(customer.id, customer.name);
                                     setShowCustomerSelect(false);
@@ -699,7 +1232,8 @@ function OrderPageInner() {
                                   <div className="flex flex-col">
                                     <span>{customer.name}</span>
                                     <span className="text-xs text-muted-foreground">
-                                      {customer.phone} • {customer.city}
+                                      {customer.phone}
+                                      {customer.city ? ` • ${customer.city}` : ''}
                                     </span>
                                   </div>
                                 </CommandItem>
@@ -710,6 +1244,10 @@ function OrderPageInner() {
                       </PopoverContent>
                     </Popover>
                   )}
+
+                  {isSalesman && customersError ? (
+                    <p className="text-sm text-destructive">{customersError}</p>
+                  ) : null}
                   
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
