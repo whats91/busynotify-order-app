@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, Loader2, Package } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { AppShell } from '@/shared/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,13 +16,13 @@ import {
 } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore, useCompanyStore, useHasHydrated } from '@/shared/lib/stores';
-import type { MaterialCenter, MaterialCenterConfig } from '@/shared/types';
+import type { VoucherSeries, VoucherSeriesConfig } from '@/shared/types';
 import {
-  materialCenterConfigService,
-  materialCenterService,
+  voucherSeriesConfigService,
+  voucherSeriesService,
 } from '@/versions/v1/services';
 
-function buildMaterialCenterConfigSignature(config: MaterialCenterConfig | null) {
+function buildVoucherSeriesConfigSignature(config: VoucherSeriesConfig | null) {
   if (!config) {
     return '';
   }
@@ -30,35 +30,32 @@ function buildMaterialCenterConfigSignature(config: MaterialCenterConfig | null)
   return JSON.stringify([
     config.companyId,
     config.financialYear,
-    config.materialCenterId,
-    config.materialCenterName,
+    config.voucherSeriesId,
+    config.voucherSeriesName,
   ]);
 }
 
-function createEmptyMaterialCenterConfig(
+function createEmptyVoucherSeriesConfig(
   companyId: number,
   financialYear: string
-): MaterialCenterConfig {
+): VoucherSeriesConfig {
   return {
     companyId,
     financialYear,
-    materialCenterId: '',
-    materialCenterName: '',
+    voucherSeriesId: '',
+    voucherSeriesName: '',
   };
 }
 
-export default function MaterialCenterConfigurationPage() {
+export default function AdminVoucherSeriesConfigurationPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
   const { selectedCompany } = useCompanyStore();
   const hasHydrated = useHasHydrated();
 
-  const [materialCenters, setMaterialCenters] = useState<MaterialCenter[]>([]);
-  const [materialCenterConfig, setMaterialCenterConfig] = useState<MaterialCenterConfig | null>(
-    null
-  );
-  const [savedMaterialCenterConfig, setSavedMaterialCenterConfig] =
-    useState<MaterialCenterConfig | null>(null);
+  const [voucherSeries, setVoucherSeries] = useState<VoucherSeries[]>([]);
+  const [config, setConfig] = useState<VoucherSeriesConfig | null>(null);
+  const [savedConfig, setSavedConfig] = useState<VoucherSeriesConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -84,9 +81,9 @@ export default function MaterialCenterConfigurationPage() {
     }
 
     if (!selectedCompany) {
-      setMaterialCenters([]);
-      setMaterialCenterConfig(null);
-      setSavedMaterialCenterConfig(null);
+      setVoucherSeries([]);
+      setConfig(null);
+      setSavedConfig(null);
       setLoadError(null);
       setIsLoading(false);
       return;
@@ -96,10 +93,8 @@ export default function MaterialCenterConfigurationPage() {
   }, [hasHydrated, isAuthenticated, selectedCompany, user]);
 
   const isDirty = useMemo(
-    () =>
-      buildMaterialCenterConfigSignature(materialCenterConfig) !==
-      buildMaterialCenterConfigSignature(savedMaterialCenterConfig),
-    [materialCenterConfig, savedMaterialCenterConfig]
+    () => buildVoucherSeriesConfigSignature(config) !== buildVoucherSeriesConfigSignature(savedConfig),
+    [config, savedConfig]
   );
 
   const loadConfiguration = async (companyId: number, financialYear: string) => {
@@ -107,73 +102,71 @@ export default function MaterialCenterConfigurationPage() {
     setLoadError(null);
 
     try {
-      const [centers, config] = await Promise.all([
-        materialCenterService.getMaterialCentersByCompany(companyId, financialYear),
-        materialCenterConfigService.getMaterialCenterConfig(companyId, financialYear),
+      const [series, saved] = await Promise.all([
+        voucherSeriesService.getVoucherSeriesByCompany(companyId, financialYear),
+        voucherSeriesConfigService.getVoucherSeriesConfig(companyId, financialYear),
       ]);
 
-      const resolvedConfig = config || createEmptyMaterialCenterConfig(companyId, financialYear);
-      setMaterialCenters(centers);
-      setMaterialCenterConfig(resolvedConfig);
-      setSavedMaterialCenterConfig(resolvedConfig);
+      const resolvedConfig = saved || createEmptyVoucherSeriesConfig(companyId, financialYear);
+      setVoucherSeries(series);
+      setConfig(resolvedConfig);
+      setSavedConfig(resolvedConfig);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Failed to load material center configuration.';
-      setMaterialCenters([]);
-      setMaterialCenterConfig(createEmptyMaterialCenterConfig(companyId, financialYear));
-      setSavedMaterialCenterConfig(createEmptyMaterialCenterConfig(companyId, financialYear));
+        error instanceof Error ? error.message : 'Failed to load voucher series configuration.';
+      setVoucherSeries([]);
+      setConfig(createEmptyVoucherSeriesConfig(companyId, financialYear));
+      setSavedConfig(createEmptyVoucherSeriesConfig(companyId, financialYear));
       setLoadError(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleMaterialCenterSelection = (materialCenterId: string) => {
-    const selectedMaterialCenter = materialCenters.find(
-      (materialCenter) => materialCenter.id === materialCenterId
-    );
+  const handleVoucherSeriesSelection = (voucherSeriesId: string) => {
+    const selectedVoucherSeries = voucherSeries.find((series) => series.id === voucherSeriesId);
 
-    setMaterialCenterConfig((current) => {
+    setConfig((current) => {
       if (!current) {
         return current;
       }
 
       return {
         ...current,
-        materialCenterId: selectedMaterialCenter?.id || '',
-        materialCenterName: selectedMaterialCenter?.name || '',
+        voucherSeriesId: selectedVoucherSeries?.id || '',
+        voucherSeriesName: selectedVoucherSeries?.name || '',
       };
     });
   };
 
   const handleSave = async () => {
-    if (!materialCenterConfig) {
+    if (!config) {
       return;
     }
 
     setIsSaving(true);
 
     try {
-      if (!materialCenterConfig.materialCenterId || !materialCenterConfig.materialCenterName) {
-        throw new Error('Select a default material center before saving.');
+      if (!config.voucherSeriesId || !config.voucherSeriesName) {
+        throw new Error('Select a default voucher series before saving.');
       }
 
-      const result = await materialCenterConfigService.updateMaterialCenterConfig({
-        companyId: materialCenterConfig.companyId,
-        financialYear: materialCenterConfig.financialYear,
-        materialCenterId: materialCenterConfig.materialCenterId,
-        materialCenterName: materialCenterConfig.materialCenterName,
+      const result = await voucherSeriesConfigService.updateVoucherSeriesConfig({
+        companyId: config.companyId,
+        financialYear: config.financialYear,
+        voucherSeriesId: config.voucherSeriesId,
+        voucherSeriesName: config.voucherSeriesName,
       });
 
       if (!result.success || !result.config) {
-        throw new Error(result.error || 'Failed to save material center configuration.');
+        throw new Error(result.error || 'Failed to save voucher series configuration.');
       }
 
-      setMaterialCenterConfig(result.config);
-      setSavedMaterialCenterConfig(result.config);
+      setConfig(result.config);
+      setSavedConfig(result.config);
       toast({
-        title: 'Material center saved',
-        description: 'New orders will now use this default material center for the active company.',
+        title: 'Voucher series saved',
+        description: 'The default voucher series has been saved for the active company.',
       });
     } catch (error) {
       toast({
@@ -199,9 +192,9 @@ export default function MaterialCenterConfigurationPage() {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Material Center Configuration</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Voucher Series Configuration</h1>
             <p className="text-muted-foreground">
-              Choose the default material center used when orders are placed for the selected company.
+              Choose the default voucher series used for the selected company.
             </p>
           </div>
           <div className="flex gap-2">
@@ -239,12 +232,12 @@ export default function MaterialCenterConfigurationPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="rounded-xl border bg-muted/30 p-2">
-                <Package className="h-5 w-5 text-muted-foreground" />
+                <FileText className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <CardTitle className="text-lg">Default Material Center</CardTitle>
+                <CardTitle className="text-lg">Default Voucher Series</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  This value is stored per company and attached to every new order.
+                  This value is stored per company and can be reused during ERP order submission.
                 </p>
               </div>
             </div>
@@ -252,62 +245,49 @@ export default function MaterialCenterConfigurationPage() {
           <CardContent>
             {!selectedCompany ? (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                Select a company from the sidebar to manage the default material center.
+                Select a company from the sidebar to manage the default voucher series.
               </div>
             ) : isLoading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading voucher series and saved configuration...
               </div>
             ) : loadError ? (
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
                 {loadError}
               </div>
-            ) : materialCenterConfig ? (
-              <div className="space-y-6">
-                <div className="rounded-2xl border bg-muted/20 p-4">
-                  <div className="flex items-start gap-3">
-                    <Building2 className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      <p>
-                        Active company:{' '}
-                        <span className="font-medium text-foreground">
-                          {selectedCompany.companyName}
-                        </span>
-                      </p>
-                      <p>
-                        Financial year:{' '}
-                        <span className="font-medium text-foreground">
-                          {selectedCompany.financialYear}
-                        </span>
-                      </p>
-                    </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-lg border bg-muted/20 px-4 py-3 text-sm">
+                  <div className="font-medium">{selectedCompany.companyName}</div>
+                  <div className="text-muted-foreground">
+                    Financial Year: {selectedCompany.financialYear}
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Default Material Center</Label>
+                  <Label>Default Voucher Series</Label>
                   <Select
-                    value={materialCenterConfig.materialCenterId || undefined}
-                    onValueChange={handleMaterialCenterSelection}
-                    disabled={isSaving || materialCenters.length === 0}
+                    value={config?.voucherSeriesId || ''}
+                    onValueChange={handleVoucherSeriesSelection}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a material center" />
+                      <SelectValue placeholder="Select a voucher series" />
                     </SelectTrigger>
                     <SelectContent>
-                      {materialCenters.map((materialCenter) => (
-                        <SelectItem key={materialCenter.id} value={materialCenter.id}>
-                          {materialCenter.name}
+                      {voucherSeries.map((series) => (
+                        <SelectItem key={series.id} value={series.id}>
+                          {series.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">
-                    The selected material center will be stored with every order for this company.
+                    Only admins can manage this default voucher series configuration.
                   </p>
                 </div>
               </div>
-            ) : null}
+            )}
           </CardContent>
         </Card>
       </div>

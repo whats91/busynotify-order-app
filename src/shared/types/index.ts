@@ -223,6 +223,44 @@ export interface MaterialCenterApiResponse {
   };
 }
 
+export interface ApiVoucherSeries {
+  voucher_series_id: number;
+  voucher_series_name: string;
+}
+
+export interface VoucherSeries {
+  id: string;
+  name: string;
+}
+
+export interface VoucherSeriesConfig {
+  companyId: number;
+  financialYear: string;
+  voucherSeriesId: string;
+  voucherSeriesName: string;
+  updatedAt?: string;
+}
+
+export interface UpdateVoucherSeriesConfigPayload {
+  companyId: number;
+  financialYear: string;
+  voucherSeriesId: string;
+  voucherSeriesName: string;
+}
+
+export interface VoucherSeriesApiResponse {
+  success: boolean;
+  data: VoucherSeries[];
+  metadata?: {
+    companyId: number;
+    companyCode: string;
+    financialYear: string;
+    rowCount: number;
+    executionTime?: string;
+    executedAt: string;
+  };
+}
+
 export interface IndianState {
   code: string;
   name: string;
@@ -472,6 +510,158 @@ export interface OrderSummary {
   itemCount: number;
 }
 
+// ==================== TASKS ====================
+
+export const TASK_PRIORITY_CODES = ['low', 'medium', 'high'] as const;
+export type TaskPriorityCode = (typeof TASK_PRIORITY_CODES)[number];
+
+export const TASK_STATUS_CODES = [
+  'pending',
+  'in_progress',
+  'completed',
+  'blocked',
+  'cancelled',
+] as const;
+export type TaskStatusCode = (typeof TASK_STATUS_CODES)[number];
+
+export interface TaskPriority {
+  code: TaskPriorityCode;
+  label: string;
+  sortOrder: number;
+  isDefault: boolean;
+}
+
+export interface TaskStatus {
+  code: TaskStatusCode;
+  label: string;
+  sortOrder: number;
+  isTerminal: boolean;
+}
+
+export interface TaskAssignment {
+  id: string;
+  taskId: string;
+  assigneeUserId: string;
+  assigneeRole: Role;
+  assigneeName: string;
+  assignedByUserId: string;
+  assignedByRole: Role;
+  assignedByName: string;
+  assignedAt: string;
+  unassignedAt?: string;
+  isActive: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  taskId: string;
+  authorUserId: string;
+  authorRole: Role;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface TaskActivityLog {
+  id: string;
+  taskId: string;
+  actorUserId: string;
+  actorRole: Role;
+  actorName: string;
+  eventType: string;
+  fieldName?: string;
+  oldValue?: string;
+  newValue?: string;
+  metaJson?: string;
+  createdAt: string;
+}
+
+export interface Task {
+  id: string;
+  taskKey: string;
+  title: string;
+  description?: string;
+  priorityCode: TaskPriorityCode;
+  statusCode: TaskStatusCode;
+  companyId?: number;
+  customerId?: string;
+  customerNameSnapshot?: string;
+  orderId?: string;
+  startAt?: string;
+  dueAt?: string;
+  completedAt?: string;
+  createdByUserId: string;
+  createdByRole: Role;
+  createdByNameSnapshot: string;
+  updatedByUserId: string;
+  updatedByRole: Role;
+  updatedByNameSnapshot: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+  activeAssignment?: TaskAssignment | null;
+  assignmentHistory?: TaskAssignment[];
+  comments?: TaskComment[];
+  activityLog?: TaskActivityLog[];
+}
+
+export interface CreateTaskPayload {
+  title: string;
+  description?: string;
+  priorityCode?: TaskPriorityCode;
+  companyId?: number;
+  customerId?: string;
+  customerNameSnapshot?: string;
+  orderId?: string;
+  startAt?: string;
+  dueAt?: string;
+  assigneeUserId?: string;
+}
+
+export interface UpdateTaskPayload {
+  title?: string;
+  description?: string | null;
+  priorityCode?: TaskPriorityCode;
+  companyId?: number | null;
+  customerId?: string | null;
+  customerNameSnapshot?: string | null;
+  orderId?: string | null;
+  startAt?: string | null;
+  dueAt?: string | null;
+  archive?: boolean;
+}
+
+export interface AssignTaskPayload {
+  assigneeUserId?: string | null;
+}
+
+export interface UpdateTaskStatusPayload {
+  statusCode: TaskStatusCode;
+}
+
+export interface CreateTaskCommentPayload {
+  body: string;
+}
+
+export interface TaskFilter {
+  search?: string;
+  statusCode?: TaskStatusCode;
+  priorityCode?: TaskPriorityCode;
+  assigneeUserId?: string;
+  companyId?: number;
+  customerId?: string;
+  orderId?: string;
+  dueDate?: string;
+  includeArchived?: boolean;
+  onlyMine?: boolean;
+}
+
+export interface TaskLookups {
+  priorities: TaskPriority[];
+  statuses: TaskStatus[];
+  salesmen: Salesman[];
+}
+
 // ==================== NAVIGATION ====================
 
 export interface NavigationItem {
@@ -600,11 +790,13 @@ export interface TranslationSchema {
     dashboard: string;
     newOrder: string;
     orders: string;
+    tasks: string;
     configuration: string;
     salesmen: string;
     productConfiguration: string;
     salesTypeSettings: string;
     materialCenterConfiguration: string;
+    voucherSeriesConfiguration: string;
     customers: string;
     products: string;
     reports: string;

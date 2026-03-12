@@ -10,5 +10,8 @@ export * from './sale-type.repository';
 export * from './sales-type-config.repository';
 export * from './material-center.repository';
 export * from './material-center-config.repository';
+export * from './voucher-series.repository';
+export * from './voucher-series-config.repository';
 export * from './order.repository';
 export * from './salesman.repository';
+export * from './task.repository';

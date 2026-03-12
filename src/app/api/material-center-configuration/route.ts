@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
+  createForbiddenPrivateApiResponse,
+  createUnauthorizedPrivateApiResponse,
+  getPrivateApiSession,
+} from '@/app/api/_lib/private-api-session';
+import {
   getMaterialCenterConfig,
   upsertMaterialCenterConfig,
 } from '@/lib/server/material-center-config-db';
@@ -61,6 +66,16 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const session = await getPrivateApiSession(request);
+
+    if (!session) {
+      return createUnauthorizedPrivateApiResponse();
+    }
+
+    if (session.user.role !== 'admin') {
+      return createForbiddenPrivateApiResponse();
+    }
+
     const parsed = materialCenterConfigSchema.safeParse(await request.json());
 
     if (!parsed.success) {

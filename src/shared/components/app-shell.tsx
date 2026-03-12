@@ -13,11 +13,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
   BadgePercent,
+  ClipboardCheck,
   LayoutDashboard,
   ShoppingCart,
   ClipboardList,
   ChevronsLeft,
   ChevronsRight,
+  FileText,
   Menu,
   Package,
   Settings2,
@@ -38,12 +40,14 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
   ShoppingCart,
   ClipboardList,
+  ClipboardCheck,
   Package,
   Settings2,
   BadgePercent,
   SlidersHorizontal,
   Users,
   Warehouse,
+  FileText,
 };
 
 const SIDEBAR_STORAGE_KEY = 'busy-notify-sidebar-collapsed';

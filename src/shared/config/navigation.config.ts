@@ -28,6 +28,13 @@ export const navigationItems: NavigationItem[] = [
     roles: ['admin', 'customer', 'salesman'],
   },
   {
+    id: 'tasks',
+    labelKey: 'navigation.tasks',
+    href: '/tasks',
+    icon: 'ClipboardCheck',
+    roles: ['admin', 'salesman'],
+  },
+  {
     id: 'salesmen',
     labelKey: 'navigation.salesmen',
     href: '/admin/salesmen',
@@ -38,7 +45,7 @@ export const navigationItems: NavigationItem[] = [
     id: 'configuration',
     labelKey: 'navigation.configuration',
     icon: 'Settings2',
-    roles: ['admin', 'customer'],
+    roles: ['admin'],
     children: [
       {
         id: 'product-configuration',
@@ -59,7 +66,14 @@ export const navigationItems: NavigationItem[] = [
         labelKey: 'navigation.materialCenterConfiguration',
         href: '/configuration/material-center',
         icon: 'Warehouse',
-        roles: ['admin', 'customer'],
+        roles: ['admin'],
+      },
+      {
+        id: 'voucher-series-configuration',
+        labelKey: 'navigation.voucherSeriesConfiguration',
+        href: '/admin/voucher-series-configuration',
+        icon: 'FileText',
+        roles: ['admin'],
       },
     ],
   },
