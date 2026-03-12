@@ -64,7 +64,7 @@ async function seedDefaultConfig(executor: SqlExecutor) {
 async function initializeSchema() {
   if (!global.busyNotifyProductConfigDbInitialized) {
     global.busyNotifyProductConfigDbInitialized = (async () => {
-      await db.$executeRawUnsafe('PRAGMA journal_mode = WAL');
+      await db.$queryRawUnsafe('PRAGMA journal_mode = WAL');
       await db.$executeRawUnsafe('PRAGMA foreign_keys = ON');
       await db.$executeRawUnsafe('PRAGMA synchronous = NORMAL');
       await db.$executeRawUnsafe(

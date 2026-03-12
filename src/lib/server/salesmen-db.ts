@@ -95,7 +95,7 @@ function mapPersistenceError(error: unknown, fallback: string): Error {
 async function initializeSchema() {
   if (!global.busyNotifySalesmenDbInitialized) {
     global.busyNotifySalesmenDbInitialized = (async () => {
-      await db.$executeRawUnsafe('PRAGMA journal_mode = WAL');
+      await db.$queryRawUnsafe('PRAGMA journal_mode = WAL');
       await db.$executeRawUnsafe('PRAGMA foreign_keys = ON');
       await db.$executeRawUnsafe('PRAGMA synchronous = NORMAL');
       await db.$executeRawUnsafe(
