@@ -495,13 +495,16 @@ function getCommentStyle(filePath) {
     return 'html';
   }
 
+  if (filePath.endsWith('.prisma')) {
+    return 'slash';
+  }
+
   if (
     filePath.endsWith('.sh') ||
     filePath === '.gitignore' ||
     filePath === 'Caddyfile' ||
     filePath === 'public/robots.txt' ||
-    filePath.endsWith('.txt') ||
-    filePath.endsWith('.prisma')
+    filePath.endsWith('.txt')
   ) {
     return 'hash';
   }
@@ -539,6 +542,17 @@ function buildHeader(filePath, content) {
     ].join('\n');
   }
 
+  if (style === 'slash') {
+    return [
+      '// File Context:',
+      `// Purpose: ${purpose}`,
+      `// Primary Functionality: ${primary}`,
+      `// Interlinked With: ${interlinkedWith}`,
+      `// Role: ${role}.`,
+      '',
+    ].join('\n');
+  }
+
   return [
     '/*',
     ' * File Context:',
@@ -555,6 +569,7 @@ function hasManagedHeader(content) {
   const normalized = content.replace(/^\uFEFF/, '');
   const withoutShebang = normalized.startsWith('#!') ? normalized.slice(normalized.indexOf('\n') + 1) : normalized;
   return withoutShebang.startsWith('/*\n * File Context:') ||
+    withoutShebang.startsWith('// File Context:') ||
     withoutShebang.startsWith('# File Context:') ||
     withoutShebang.startsWith('<!--\nFile Context:');
 }

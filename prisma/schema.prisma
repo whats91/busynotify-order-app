@@ -1,8 +1,8 @@
-# File Context:
-# Purpose: Defines the Prisma schema used to generate database client artifacts.
-# Primary Functionality: Declares models, datasource rules, and generator settings for Prisma-based tooling.
-# Interlinked With: No direct internal imports; primarily used by framework or toolchain entry points.
-# Role: database schema.
+// File Context:
+// Purpose: Defines the Prisma schema used to generate database client artifacts.
+// Primary Functionality: Declares models, datasource rules, and generator settings for Prisma-based tooling.
+// Interlinked With: No direct internal imports; primarily used by framework or toolchain entry points.
+// Role: database schema.
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
