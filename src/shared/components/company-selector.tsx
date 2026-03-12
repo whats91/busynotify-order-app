@@ -79,7 +79,7 @@ export function CompanySelector({
       setError(null);
 
       try {
-        const response = await fetch('/api/companies', {
+        const response = await fetch('/api/internal/companies', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

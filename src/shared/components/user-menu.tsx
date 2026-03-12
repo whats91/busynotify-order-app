@@ -28,8 +28,16 @@ export function UserMenu() {
   const clearCustomer = useCustomerStore((state) => state.clearCustomer);
   const t = useTranslation();
   
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const loginPath = user?.role === 'customer' ? '/login' : '/staff-login';
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+    } catch (error) {
+      console.error('Logout request failed:', error);
+    }
     logout();
     resetCart();
     clearCompany();

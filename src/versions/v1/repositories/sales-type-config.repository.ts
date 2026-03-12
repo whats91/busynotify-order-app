@@ -6,7 +6,7 @@ export class SalesTypeConfigRepository {
       companyId: String(companyId),
       financialYear,
     });
-    const response = await fetch(`/api/admin/sales-type-configuration?${searchParams.toString()}`, {
+    const response = await fetch(`/api/internal/admin/sales-type-configuration?${searchParams.toString()}`, {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -26,7 +26,7 @@ export class SalesTypeConfigRepository {
   }
 
   async update(payload: UpdateSalesTypeConfigPayload): Promise<SalesTypeConfig> {
-    const response = await fetch('/api/admin/sales-type-configuration', {
+    const response = await fetch('/api/internal/admin/sales-type-configuration', {
       method: 'PUT',
       credentials: 'same-origin',
       headers: {

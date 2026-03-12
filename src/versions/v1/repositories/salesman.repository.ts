@@ -10,7 +10,7 @@ import type {
 
 export class SalesmanRepository {
   async findAll(): Promise<Salesman[]> {
-    const response = await fetch('/api/admin/salesmen', {
+    const response = await fetch('/api/internal/admin/salesmen', {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -30,7 +30,7 @@ export class SalesmanRepository {
   }
 
   async create(payload: CreateSalesmanPayload): Promise<Salesman> {
-    const response = await fetch('/api/admin/salesmen', {
+    const response = await fetch('/api/internal/admin/salesmen', {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
@@ -53,7 +53,7 @@ export class SalesmanRepository {
   }
 
   async update(id: string, payload: UpdateSalesmanPayload): Promise<Salesman> {
-    const response = await fetch(`/api/admin/salesmen/${id}`, {
+    const response = await fetch(`/api/internal/admin/salesmen/${id}`, {
       method: 'PATCH',
       credentials: 'same-origin',
       headers: {
@@ -76,7 +76,7 @@ export class SalesmanRepository {
   }
 
   async delete(id: string): Promise<void> {
-    const response = await fetch(`/api/admin/salesmen/${id}`, {
+    const response = await fetch(`/api/internal/admin/salesmen/${id}`, {
       method: 'DELETE',
       credentials: 'same-origin',
     });

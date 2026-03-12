@@ -8,6 +8,11 @@ import {
   getOtpCookieName,
   normalizeWhatsappNumber,
 } from '../_lib/customer-otp';
+import {
+  createPrivateApiSessionCookieValue,
+  getPrivateApiSessionCookieName,
+  getPrivateApiSessionCookieOptions,
+} from '@/app/api/_lib/private-api-session';
 
 export const runtime = 'nodejs';
 
@@ -66,17 +71,29 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
+    const session = createCustomerSession({
+      whatsappNumber,
+      customerId: companyMatch.customerId,
+      customerName: companyMatch.customerName,
+    });
+
     const response = NextResponse.json({
       success: true,
       data: {
-        session: createCustomerSession({
-          whatsappNumber,
-          customerId: companyMatch.customerId,
-          customerName: companyMatch.customerName,
-        }),
+        session,
       },
     });
 
+    const cookieValue = await createPrivateApiSessionCookieValue(
+      session.user,
+      Math.max(1, session.expiresAt - Date.now())
+    );
+
+    response.cookies.set(
+      getPrivateApiSessionCookieName(),
+      cookieValue,
+      getPrivateApiSessionCookieOptions(session.expiresAt)
+    );
     response.cookies.set(getOtpCookieName(), '', getExpiredOtpCookieOptions());
 
     return response;

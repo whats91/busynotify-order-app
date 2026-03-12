@@ -2,7 +2,7 @@ import type { ProductFieldConfig, UpdateProductFieldConfigPayload } from '../../
 
 export class ProductConfigRepository {
   async findAll(): Promise<ProductFieldConfig[]> {
-    const response = await fetch('/api/admin/product-configuration', {
+    const response = await fetch('/api/internal/admin/product-configuration', {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -22,7 +22,7 @@ export class ProductConfigRepository {
   }
 
   async update(config: UpdateProductFieldConfigPayload[]): Promise<ProductFieldConfig[]> {
-    const response = await fetch('/api/admin/product-configuration', {
+    const response = await fetch('/api/internal/admin/product-configuration', {
       method: 'PUT',
       credentials: 'same-origin',
       headers: {

@@ -104,7 +104,7 @@ export async function fetchProducts(companyId: number, financialYear: string): P
   error?: string;
 }> {
   try {
-    const response = await fetch('/api/products', {
+    const response = await fetch('/api/internal/products', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

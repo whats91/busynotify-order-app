@@ -9,7 +9,7 @@ export class OrderRepository {
    * Get all orders
    */
   async findAll(): Promise<Order[]> {
-    const response = await fetch('/api/orders', {
+    const response = await fetch('/api/internal/orders', {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -32,7 +32,7 @@ export class OrderRepository {
    * Get order by ID
    */
   async findById(id: string): Promise<Order | null> {
-    const response = await fetch(`/api/orders/${id}`, {
+    const response = await fetch(`/api/internal/orders/${id}`, {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -60,7 +60,7 @@ export class OrderRepository {
    */
   async findByCustomerId(customerId: string): Promise<Order[]> {
     const searchParams = new URLSearchParams({ customerId });
-    const response = await fetch(`/api/orders?${searchParams.toString()}`, {
+    const response = await fetch(`/api/internal/orders?${searchParams.toString()}`, {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -84,7 +84,7 @@ export class OrderRepository {
    */
   async findByCreator(createdBy: string): Promise<Order[]> {
     const searchParams = new URLSearchParams({ createdBy });
-    const response = await fetch(`/api/orders?${searchParams.toString()}`, {
+    const response = await fetch(`/api/internal/orders?${searchParams.toString()}`, {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -126,7 +126,7 @@ export class OrderRepository {
     createdByRole: 'customer' | 'salesman' | 'admin',
     notes?: string
   ): Promise<Order> {
-    const response = await fetch('/api/orders', {
+    const response = await fetch('/api/internal/orders', {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
@@ -167,7 +167,7 @@ export class OrderRepository {
    * Update order status
    */
   async updateStatus(orderId: string, status: OrderStatus): Promise<Order | null> {
-    const response = await fetch(`/api/orders/${orderId}/status`, {
+    const response = await fetch(`/api/internal/orders/${orderId}/status`, {
       method: 'PATCH',
       credentials: 'same-origin',
       headers: {
@@ -207,7 +207,7 @@ export class OrderRepository {
       searchParams.set('status', filter.status);
     }
 
-    const response = await fetch(`/api/orders?${searchParams.toString()}`, {
+    const response = await fetch(`/api/internal/orders?${searchParams.toString()}`, {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',

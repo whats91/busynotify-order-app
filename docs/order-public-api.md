@@ -1,4 +1,4 @@
-# Order Public API
+# Order API
 
 These endpoints are intended for external integrations.
 
@@ -19,7 +19,7 @@ Every public request must also include `company_id`, so each deployment only exp
 ## 1. Get Orders
 
 - Method: `GET`
-- Route: `/api/public/orders`
+- Route: `/api/order`
 - Purpose: Fetch orders for one company, optionally filtered by status
 
 ### Required Query Parameters
@@ -42,21 +42,21 @@ Every public request must also include `company_id`, so each deployment only exp
 Get all orders for company `14`:
 
 ```bash
-curl --location 'http://localhost:3025/api/public/orders?company_id=14' \
+curl --location 'http://localhost:3025/api/order?company_id=14' \
 --header 'Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN'
 ```
 
 Get only pending orders for company `14`:
 
 ```bash
-curl --location 'http://localhost:3025/api/public/orders?company_id=14&status=pending' \
+curl --location 'http://localhost:3025/api/order?company_id=14&status=pending' \
 --header 'Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN'
 ```
 
 Get pending and processing orders for company `14`:
 
 ```bash
-curl --location 'http://localhost:3025/api/public/orders?company_id=14&status=pending,processing' \
+curl --location 'http://localhost:3025/api/order?company_id=14&status=pending,processing' \
 --header 'Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN'
 ```
 
@@ -99,7 +99,7 @@ curl --location 'http://localhost:3025/api/public/orders?company_id=14&status=pe
 ## 2. Update Order Status
 
 - Method: `PUT`
-- Route: `/api/public/orders/:id/status`
+- Route: `/api/order/:id/status`
 - Purpose: Update an existing order status for one company
 
 ### Path Parameters
@@ -117,7 +117,7 @@ curl --location 'http://localhost:3025/api/public/orders?company_id=14&status=pe
 ### Example Request
 
 ```bash
-curl --location --request PUT 'http://localhost:3025/api/public/orders/1/status' \
+curl --location --request PUT 'http://localhost:3025/api/order/1/status' \
 --header 'Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN' \
 --header 'Content-Type: application/json' \
 --data '{
@@ -158,6 +158,6 @@ curl --location --request PUT 'http://localhost:3025/api/public/orders/1/status'
 
 ## Notes
 
-- `PATCH /api/public/orders/:id/status` also works for backward compatibility.
-- The internal app routes `/api/orders` and `/api/orders/:id/status` are unchanged for browser usage.
+- `PATCH /api/order/:id/status` also works for backward compatibility.
+- The internal app routes now live under `/api/internal/...`, for example `/api/internal/orders` and `/api/internal/orders/:id/status`.
 - Public routes reject requests when `PUBLIC_API_AUTH_TOKEN` is missing or invalid.

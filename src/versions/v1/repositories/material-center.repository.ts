@@ -2,7 +2,7 @@ import type { MaterialCenter } from '../../../shared/types';
 
 export class MaterialCenterRepository {
   async findAllByCompany(companyId: number, financialYear: string): Promise<MaterialCenter[]> {
-    const response = await fetch('/api/material-centers', {
+    const response = await fetch('/api/internal/material-centers', {
       method: 'POST',
       credentials: 'same-origin',
       headers: {

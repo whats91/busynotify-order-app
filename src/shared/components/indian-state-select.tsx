@@ -53,7 +53,7 @@ export function IndianStateSelect({
       setLoadError(null);
 
       try {
-        const response = await fetch('/api/meta/indian-states', {
+        const response = await fetch('/api/internal/meta/indian-states', {
           method: 'GET',
           credentials: 'same-origin',
           cache: 'force-cache',

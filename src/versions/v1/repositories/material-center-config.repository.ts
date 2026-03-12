@@ -10,7 +10,7 @@ export class MaterialCenterConfigRepository {
       financialYear,
     });
     const response = await fetch(
-      `/api/material-center-configuration?${searchParams.toString()}`,
+      `/api/internal/material-center-configuration?${searchParams.toString()}`,
       {
         method: 'GET',
         credentials: 'same-origin',
@@ -32,7 +32,7 @@ export class MaterialCenterConfigRepository {
   }
 
   async update(payload: UpdateMaterialCenterConfigPayload): Promise<MaterialCenterConfig> {
-    const response = await fetch('/api/material-center-configuration', {
+    const response = await fetch('/api/internal/material-center-configuration', {
       method: 'PUT',
       credentials: 'same-origin',
       headers: {

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authenticateSalesman } from '@/lib/server/salesmen-db';
 import type { User } from '@/shared/types';
+import {
+  createPrivateApiSessionCookieValue,
+  getPrivateApiSessionCookieName,
+  getPrivateApiSessionCookieOptions,
+} from '@/app/api/_lib/private-api-session';
 
 export const runtime = 'nodejs';
 
@@ -45,12 +50,21 @@ export async function POST(request: NextRequest) {
     const adminUser = authenticateAdmin(username, password);
 
     if (adminUser) {
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         data: {
           user: adminUser,
         },
       });
+
+      const cookieValue = await createPrivateApiSessionCookieValue(adminUser);
+      response.cookies.set(
+        getPrivateApiSessionCookieName(),
+        cookieValue,
+        getPrivateApiSessionCookieOptions(Date.now() + 24 * 60 * 60 * 1000)
+      );
+
+      return response;
     }
 
     const salesmanUser = await authenticateSalesman(username, password);
@@ -65,12 +79,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         user: salesmanUser,
       },
     });
+
+    const cookieValue = await createPrivateApiSessionCookieValue(salesmanUser);
+    response.cookies.set(
+      getPrivateApiSessionCookieName(),
+      cookieValue,
+      getPrivateApiSessionCookieOptions(Date.now() + 24 * 60 * 60 * 1000)
+    );
+
+    return response;
   } catch (error) {
     console.error('Staff login failed:', error);
     return NextResponse.json(

@@ -71,7 +71,7 @@ export class AuthRepository {
     error?: string;
   }> {
     try {
-      const response = await fetch('/api/auth/validate-customer-company', {
+      const response = await fetch('/api/internal/auth/validate-customer-company', {
         method: 'POST',
         credentials: 'same-origin',
         headers: {

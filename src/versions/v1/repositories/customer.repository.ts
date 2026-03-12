@@ -12,7 +12,7 @@ import {
 
 export class CustomerRepository {
   async findAllByCompany(params: CustomerListRequest): Promise<Customer[]> {
-    const response = await fetch('/api/customers', {
+    const response = await fetch('/api/internal/customers', {
       method: 'POST',
       credentials: 'same-origin',
       cache: 'no-store',

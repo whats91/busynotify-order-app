@@ -2,7 +2,7 @@ import type { SaleType } from '../../../shared/types';
 
 export class SaleTypeRepository {
   async findAllByCompany(companyId: number, financialYear: string): Promise<SaleType[]> {
-    const response = await fetch('/api/sale-types', {
+    const response = await fetch('/api/internal/sale-types', {
       method: 'POST',
       credentials: 'same-origin',
       headers: {
