@@ -98,14 +98,23 @@ export class OrderController {
    * @future This will be called by POST /api/orders
    */
   async createOrder(params: {
+    companyId?: number;
+    financialYear?: string;
     customerId: string;
     customerName: string;
+    customerState: string;
+    companyState: string;
+    saleTypeId: string;
+    saleTypeName: string;
+    materialCenterId: string;
+    materialCenterName: string;
     items: Array<{
       productId: string;
       productName: string;
       productSku: string;
       quantity: number;
       unitPrice: number;
+      taxRate: number;
     }>;
     createdBy: string;
     createdByRole: 'customer' | 'salesman' | 'admin';

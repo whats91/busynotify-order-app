@@ -1,7 +1,3 @@
-// =====================================================
-// ADMIN PRODUCT CONFIGURATION PAGE
-// =====================================================
-
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -123,15 +119,7 @@ export default function AdminProductConfigurationPage() {
     }
   };
 
-  if (!hasHydrated) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !user || user.role !== 'admin') {
+  if (!hasHydrated || !isAuthenticated || !user || user.role !== 'admin') {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

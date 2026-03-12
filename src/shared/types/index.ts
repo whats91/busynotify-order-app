@@ -131,6 +131,104 @@ export interface CustomerApiResponse {
   };
 }
 
+// ==================== SALE TYPES ====================
+
+export interface ApiSaleType {
+  sale_type_id: number;
+  sale_type_name: string;
+  sale_type_alias: string;
+  sale_type_print_name: string;
+}
+
+export interface SaleType {
+  id: string;
+  name: string;
+  alias?: string;
+  printName?: string;
+}
+
+export interface SalesTypeConfig {
+  companyId: number;
+  financialYear: string;
+  companyState: string;
+  sameStateSaleTypeId: string;
+  sameStateSaleTypeName: string;
+  interstateSaleTypeId: string;
+  interstateSaleTypeName: string;
+  updatedAt?: string;
+}
+
+export interface UpdateSalesTypeConfigPayload {
+  companyId: number;
+  financialYear: string;
+  companyState: string;
+  sameStateSaleTypeId: string;
+  sameStateSaleTypeName: string;
+  interstateSaleTypeId: string;
+  interstateSaleTypeName: string;
+}
+
+export interface SaleTypeApiResponse {
+  success: boolean;
+  data: SaleType[];
+  metadata?: {
+    companyId: number;
+    companyCode: string;
+    financialYear: string;
+    rowCount: number;
+    executionTime?: string;
+    executedAt: string;
+  };
+}
+
+export interface ApiMaterialCenter {
+  mc_id: number;
+  mc_name: string;
+  mc_alias: string;
+  mc_print_name: string;
+}
+
+export interface MaterialCenter {
+  id: string;
+  name: string;
+  alias?: string;
+  printName?: string;
+}
+
+export interface MaterialCenterConfig {
+  companyId: number;
+  financialYear: string;
+  materialCenterId: string;
+  materialCenterName: string;
+  updatedAt?: string;
+}
+
+export interface UpdateMaterialCenterConfigPayload {
+  companyId: number;
+  financialYear: string;
+  materialCenterId: string;
+  materialCenterName: string;
+}
+
+export interface MaterialCenterApiResponse {
+  success: boolean;
+  data: MaterialCenter[];
+  metadata?: {
+    companyId: number;
+    companyCode: string;
+    financialYear: string;
+    rowCount: number;
+    executionTime?: string;
+    executedAt: string;
+  };
+}
+
+export interface IndianState {
+  code: string;
+  name: string;
+  type: 'state' | 'union-territory';
+}
+
 // ==================== SALESMAN ====================
 
 export interface Salesman {
@@ -346,6 +444,12 @@ export interface Order {
   orderNumber: string;
   customerId: string;
   customerName: string;
+  customerState?: string;
+  companyState?: string;
+  saleTypeId?: string;
+  saleTypeName?: string;
+  materialCenterId?: string;
+  materialCenterName?: string;
   items: OrderItem[];
   subtotal: number;
   tax: number;
@@ -373,7 +477,7 @@ export interface OrderSummary {
 export interface NavigationItem {
   id: string;
   labelKey: string; // Translation key
-  href: string;
+  href?: string;
   icon?: string;
   roles: Role[];
   children?: NavigationItem[];
@@ -496,8 +600,11 @@ export interface TranslationSchema {
     dashboard: string;
     newOrder: string;
     orders: string;
+    configuration: string;
     salesmen: string;
     productConfiguration: string;
+    salesTypeSettings: string;
+    materialCenterConfiguration: string;
     customers: string;
     products: string;
     reports: string;

@@ -1,41 +1,63 @@
 # Order Public API
 
-These endpoints are available from the app server and return JSON.
+These endpoints are intended for external integrations.
+
+They are protected by a deployment-specific token from `.env`:
+
+```env
+PUBLIC_API_AUTH_TOKEN=replace-with-a-long-random-string
+```
+
+Use that token in the `Authorization` header:
+
+```http
+Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN
+```
+
+Every public request must also include `company_id`, so each deployment only exposes one company’s order data at a time.
 
 ## 1. Get Orders
 
 - Method: `GET`
-- Route: `/api/orders`
-- Purpose: Fetch all orders or filter by one or more statuses
+- Route: `/api/public/orders`
+- Purpose: Fetch orders for one company, optionally filtered by status
 
-### Query Parameters
+### Required Query Parameters
 
-- `status` optional
-  - Omit it to get all orders
+- `company_id`
+  - Example: `14`
+
+### Optional Query Parameters
+
+- `status`
+  - Omit it to get all orders for the company
   - Pass one value like `pending`
   - Pass multiple values as comma-separated, for example `pending,processing`
   - You can also repeat the query param, for example `?status=pending&status=processing`
-- `customerId` optional
-- `createdBy` optional
+- `customerId`
+- `createdBy`
 
 ### Example Requests
 
-Get all orders:
+Get all orders for company `14`:
 
 ```bash
-curl --location 'http://localhost:3025/api/orders'
+curl --location 'http://localhost:3025/api/public/orders?company_id=14' \
+--header 'Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN'
 ```
 
-Get only pending orders:
+Get only pending orders for company `14`:
 
 ```bash
-curl --location 'http://localhost:3025/api/orders?status=pending'
+curl --location 'http://localhost:3025/api/public/orders?company_id=14&status=pending' \
+--header 'Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN'
 ```
 
-Get pending and processing orders:
+Get pending and processing orders for company `14`:
 
 ```bash
-curl --location 'http://localhost:3025/api/orders?status=pending,processing'
+curl --location 'http://localhost:3025/api/public/orders?company_id=14&status=pending,processing' \
+--header 'Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN'
 ```
 
 ### Example Success Response
@@ -49,6 +71,10 @@ curl --location 'http://localhost:3025/api/orders?status=pending,processing'
       "orderNumber": "ORD-2026-000001",
       "customerId": "1289",
       "customerName": "Devendar Infotech India",
+      "saleTypeId": "1230",
+      "saleTypeName": "Central-12%",
+      "materialCenterId": "201",
+      "materialCenterName": "Main Store",
       "items": [],
       "subtotal": 1000,
       "tax": 120,
@@ -61,6 +87,7 @@ curl --location 'http://localhost:3025/api/orders?status=pending,processing'
     }
   ],
   "metadata": {
+    "companyId": 14,
     "statuses": [
       "pending"
     ],
@@ -72,25 +99,29 @@ curl --location 'http://localhost:3025/api/orders?status=pending,processing'
 ## 2. Update Order Status
 
 - Method: `PUT`
-- Route: `/api/orders/:id/status`
-- Purpose: Update an existing order status from an external tool
+- Route: `/api/public/orders/:id/status`
+- Purpose: Update an existing order status for one company
 
 ### Path Parameters
 
 - `id` required
   - SQLite order id, for example `1`
 
-### Request Body
+### Required Request Body
 
-- `status` required
+- `company_id`
+  - Example: `14`
+- `status`
   - Allowed values: `pending`, `confirmed`, `processing`, `shipped`, `delivered`, `cancelled`
 
 ### Example Request
 
 ```bash
-curl --location --request PUT 'http://localhost:3025/api/orders/1/status' \
+curl --location --request PUT 'http://localhost:3025/api/public/orders/1/status' \
+--header 'Authorization: Bearer YOUR_PUBLIC_API_AUTH_TOKEN' \
 --header 'Content-Type: application/json' \
 --data '{
+  "company_id": 14,
   "status": "confirmed"
 }'
 ```
@@ -105,6 +136,10 @@ curl --location --request PUT 'http://localhost:3025/api/orders/1/status' \
     "orderNumber": "ORD-2026-000001",
     "customerId": "1289",
     "customerName": "Devendar Infotech India",
+    "saleTypeId": "1230",
+    "saleTypeName": "Central-12%",
+    "materialCenterId": "201",
+    "materialCenterName": "Main Store",
     "items": [],
     "subtotal": 1000,
     "tax": 120,
@@ -114,11 +149,15 @@ curl --location --request PUT 'http://localhost:3025/api/orders/1/status' \
     "updatedAt": "2026-03-12T10:05:00.000Z",
     "createdBy": "1289",
     "createdByRole": "customer"
+  },
+  "metadata": {
+    "companyId": 14
   }
 }
 ```
 
 ## Notes
 
-- `PATCH /api/orders/:id/status` still works for backward compatibility.
-- These endpoints are currently public at the app level. If you expose them outside a trusted network, add authentication before production use.
+- `PATCH /api/public/orders/:id/status` also works for backward compatibility.
+- The internal app routes `/api/orders` and `/api/orders/:id/status` are unchanged for browser usage.
+- Public routes reject requests when `PUBLIC_API_AUTH_TOKEN` is missing or invalid.

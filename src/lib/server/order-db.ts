@@ -12,6 +12,12 @@ interface OrderRow {
   product_id: string | null;
   customer_id: string;
   customer_name: string;
+  customer_state: string | null;
+  company_state: string | null;
+  sale_type_id: string | null;
+  sale_type_name: string | null;
+  material_center_id: string | null;
+  material_center_name: string | null;
   salesman_id: string | null;
   cart_value: number;
   subtotal: number;
@@ -43,6 +49,12 @@ interface CreateOrderParams {
   financialYear?: string;
   customerId: string;
   customerName: string;
+  customerState?: string;
+  companyState?: string;
+  saleTypeId?: string;
+  saleTypeName?: string;
+  materialCenterId?: string;
+  materialCenterName?: string;
   createdBy: string;
   createdByRole: 'customer' | 'salesman' | 'admin';
   notes?: string;
@@ -57,6 +69,7 @@ interface CreateOrderParams {
 }
 
 interface OrderQueryOptions {
+  companyId?: number;
   customerId?: string;
   createdBy?: string;
   status?: OrderStatus;
@@ -95,6 +108,12 @@ function mapOrder(orderRow: OrderRow, itemRows: OrderItemRow[]): Order {
     orderNumber: orderRow.order_number,
     customerId: orderRow.customer_id,
     customerName: orderRow.customer_name,
+    customerState: orderRow.customer_state || undefined,
+    companyState: orderRow.company_state || undefined,
+    saleTypeId: orderRow.sale_type_id || undefined,
+    saleTypeName: orderRow.sale_type_name || undefined,
+    materialCenterId: orderRow.material_center_id || undefined,
+    materialCenterName: orderRow.material_center_name || undefined,
     items: mapOrderItems(itemRows),
     subtotal: orderRow.subtotal,
     tax: orderRow.tax,
@@ -141,6 +160,12 @@ async function initializeSchema() {
           product_id TEXT,
           customer_id TEXT NOT NULL,
           customer_name TEXT NOT NULL,
+          customer_state TEXT,
+          company_state TEXT,
+          sale_type_id TEXT,
+          sale_type_name TEXT,
+          material_center_id TEXT,
+          material_center_name TEXT,
           salesman_id TEXT,
           cart_value REAL NOT NULL,
           subtotal REAL NOT NULL,
@@ -191,6 +216,12 @@ async function initializeSchema() {
         'CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id)'
       );
       await ensureColumnExists('orders', 'product_id', 'TEXT');
+      await ensureColumnExists('orders', 'customer_state', 'TEXT');
+      await ensureColumnExists('orders', 'company_state', 'TEXT');
+      await ensureColumnExists('orders', 'sale_type_id', 'TEXT');
+      await ensureColumnExists('orders', 'sale_type_name', 'TEXT');
+      await ensureColumnExists('orders', 'material_center_id', 'TEXT');
+      await ensureColumnExists('orders', 'material_center_name', 'TEXT');
       await db.$executeRawUnsafe(
         'CREATE INDEX IF NOT EXISTS idx_orders_product_id ON orders(product_id)'
       );
@@ -237,6 +268,11 @@ export async function listStoredOrders(filters: OrderQueryOptions = {}): Promise
   const whereClauses: string[] = [];
   const params: Array<string | number> = [];
 
+  if (filters.companyId != null) {
+    whereClauses.push('company_id = ?');
+    params.push(filters.companyId);
+  }
+
   if (filters.customerId) {
     whereClauses.push('customer_id = ?');
     params.push(filters.customerId);
@@ -258,7 +294,7 @@ export async function listStoredOrders(filters: OrderQueryOptions = {}): Promise
 
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
   const orderRows = await db.$queryRawUnsafe<OrderRow[]>(
-    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
+    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_state, company_state, sale_type_id, sale_type_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
      FROM orders
      ${whereSql}
      ORDER BY datetime(created_at) DESC, id DESC`,
@@ -273,7 +309,10 @@ export async function listStoredOrders(filters: OrderQueryOptions = {}): Promise
   return orderRows.map((row) => mapOrder(row, itemsByOrderId.get(toNumber(row.id)) ?? []));
 }
 
-export async function getStoredOrderById(orderId: string): Promise<Order | null> {
+export async function getStoredOrderById(
+  orderId: string,
+  companyId?: number
+): Promise<Order | null> {
   await initializeSchema();
 
   const numericOrderId = Number(orderId);
@@ -282,11 +321,20 @@ export async function getStoredOrderById(orderId: string): Promise<Order | null>
     return null;
   }
 
+  const params: Array<string | number> = [numericOrderId];
+  const companyFilterSql =
+    companyId != null
+      ? (() => {
+          params.push(companyId);
+          return ' AND company_id = ?';
+        })()
+      : '';
+
   const orderRows = await db.$queryRawUnsafe<OrderRow[]>(
-    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
+    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_state, company_state, sale_type_id, sale_type_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
      FROM orders
-     WHERE id = ?`,
-    numericOrderId
+     WHERE id = ?${companyFilterSql}`,
+    ...params
   );
 
   const orderRow = orderRows[0];
@@ -327,6 +375,12 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         product_id,
         customer_id,
         customer_name,
+        customer_state,
+        company_state,
+        sale_type_id,
+        sale_type_name,
+        material_center_id,
+        material_center_name,
         salesman_id,
         cart_value,
         subtotal,
@@ -338,13 +392,19 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         created_by_role,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       orderNumber,
       params.companyId ?? null,
       params.financialYear ?? null,
       params.items[0]?.productId ?? null,
       params.customerId,
       params.customerName,
+      params.customerState?.trim() || null,
+      params.companyState?.trim() || null,
+      params.saleTypeId?.trim() || null,
+      params.saleTypeName?.trim() || null,
+      params.materialCenterId?.trim() || null,
+      params.materialCenterName?.trim() || null,
       salesmanId,
       cartValue,
       subtotal,
@@ -404,7 +464,8 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
 
 export async function updateStoredOrderStatus(
   orderId: string,
-  status: OrderStatus
+  status: OrderStatus,
+  companyId?: number
 ): Promise<Order | null> {
   await initializeSchema();
 
@@ -414,16 +475,23 @@ export async function updateStoredOrderStatus(
     return null;
   }
 
+  const params: Array<string | number> = [status, new Date().toISOString(), numericOrderId];
+  const companyFilterSql =
+    companyId != null
+      ? (() => {
+          params.push(companyId);
+          return ' AND company_id = ?';
+        })()
+      : '';
+
   const updatedCount = await db.$executeRawUnsafe(
-    'UPDATE orders SET status = ?, updated_at = ? WHERE id = ?',
-    status,
-    new Date().toISOString(),
-    numericOrderId
+    `UPDATE orders SET status = ?, updated_at = ? WHERE id = ?${companyFilterSql}`,
+    ...params
   );
 
   if (updatedCount === 0) {
     return null;
   }
 
-  return getStoredOrderById(String(numericOrderId));
+  return getStoredOrderById(String(numericOrderId), companyId);
 }

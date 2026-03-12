@@ -49,6 +49,12 @@ export class OrderService {
     financialYear?: string;
     customerId: string;
     customerName: string;
+    customerState: string;
+    companyState: string;
+    saleTypeId: string;
+    saleTypeName: string;
+    materialCenterId: string;
+    materialCenterName: string;
     items: Array<{
       productId: string;
       productName: string;
@@ -81,6 +87,12 @@ export class OrderService {
         params.financialYear,
         params.customerId,
         params.customerName,
+        params.customerState,
+        params.companyState,
+        params.saleTypeId,
+        params.saleTypeName,
+        params.materialCenterId,
+        params.materialCenterName,
         orderItems.map((orderItem, index) => ({
           ...orderItem,
           taxRate: params.items[index]?.taxRate ?? 18,

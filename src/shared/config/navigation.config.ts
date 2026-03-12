@@ -35,40 +35,96 @@ export const navigationItems: NavigationItem[] = [
     roles: ['admin'],
   },
   {
-    id: 'product-configuration',
-    labelKey: 'navigation.productConfiguration',
-    href: '/admin/product-configuration',
-    icon: 'SlidersHorizontal',
-    roles: ['admin'],
+    id: 'configuration',
+    labelKey: 'navigation.configuration',
+    icon: 'Settings2',
+    roles: ['admin', 'customer'],
+    children: [
+      {
+        id: 'product-configuration',
+        labelKey: 'navigation.productConfiguration',
+        href: '/admin/product-configuration',
+        icon: 'Package',
+        roles: ['admin'],
+      },
+      {
+        id: 'sales-type-settings',
+        labelKey: 'navigation.salesTypeSettings',
+        href: '/admin/sales-type-settings',
+        icon: 'BadgePercent',
+        roles: ['admin'],
+      },
+      {
+        id: 'material-center-configuration',
+        labelKey: 'navigation.materialCenterConfiguration',
+        href: '/configuration/material-center',
+        icon: 'Warehouse',
+        roles: ['admin', 'customer'],
+      },
+    ],
   },
 ];
 
-// Get navigation items for a specific role
-export function getNavigationForRole(role: Role): NavigationItem[] {
-  return navigationItems.filter(item => item.roles.includes(role));
+function filterNavigationItem(item: NavigationItem, role: Role): NavigationItem | null {
+  const filteredChildren = item.children
+    ?.map((child) => filterNavigationItem(child, role))
+    .filter((child): child is NavigationItem => Boolean(child));
+
+  if (filteredChildren && filteredChildren.length > 0) {
+    return {
+      ...item,
+      children: filteredChildren,
+    };
+  }
+
+  if (item.roles.includes(role)) {
+    return {
+      ...item,
+      children: undefined,
+    };
+  }
+
+  return null;
 }
 
-// Check if a route is accessible by a role
+export function getNavigationForRole(role: Role): NavigationItem[] {
+  return navigationItems
+    .map((item) => filterNavigationItem(item, role))
+    .filter((item): item is NavigationItem => Boolean(item));
+}
+
+function matchesNavigationItem(route: string, item: NavigationItem, role: Role): boolean {
+  const itemMatches =
+    item.href !== undefined &&
+    item.roles.includes(role) &&
+    (route === item.href || route.startsWith(`${item.href}/`));
+
+  if (itemMatches) {
+    return true;
+  }
+
+  if (!item.children || item.children.length === 0) {
+    return false;
+  }
+
+  return item.children.some((child) => matchesNavigationItem(route, child, role));
+}
+
 export function isRouteAccessible(route: string, role: Role): boolean {
-  const normalizedRoute = route.split('?')[0]; // Remove query params
-  
-  // Public routes
+  const normalizedRoute = route.split('?')[0];
+
   const publicRoutes = ['/login', '/staff-login', '/'];
   if (publicRoutes.includes(normalizedRoute)) {
     return true;
   }
-  
-  // Check against navigation items
-  for (const item of navigationItems) {
-    if (normalizedRoute.startsWith(item.href) && item.roles.includes(role)) {
-      return true;
-    }
+
+  if (navigationItems.some((item) => matchesNavigationItem(normalizedRoute, item, role))) {
+    return true;
   }
-  
-  // Admin has access to everything
+
   if (role === 'admin') {
     return true;
   }
-  
+
   return false;
 }

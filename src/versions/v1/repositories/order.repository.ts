@@ -111,6 +111,12 @@ export class OrderRepository {
     financialYear: string | undefined,
     customerId: string,
     customerName: string,
+    customerState: string,
+    companyState: string,
+    saleTypeId: string,
+    saleTypeName: string,
+    materialCenterId: string,
+    materialCenterName: string,
     items: Array<
       Pick<OrderItem, 'productId' | 'productName' | 'productSku' | 'quantity' | 'unitPrice'> & {
         taxRate: number;
@@ -131,6 +137,12 @@ export class OrderRepository {
         financialYear,
         customerId,
         customerName,
+        customerState,
+        companyState,
+        saleTypeId,
+        saleTypeName,
+        materialCenterId,
+        materialCenterName,
         items,
         createdBy,
         createdByRole,

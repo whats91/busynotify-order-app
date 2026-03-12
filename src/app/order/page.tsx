@@ -61,8 +61,21 @@ import { formatCurrency } from '@/shared/components/format-currency';
 import { useSetFooterContent, useSetHeaderActions } from '@/shared/lib/header-action-context';
 import { FooterBar, MobileCartFooter } from '@/shared/components/footer-bar';
 import { defaultProductFieldConfig } from '@/shared/config';
-import { customerService, orderService, productConfigService } from '@/versions/v1/services';
-import type { ProductDisplay, Customer, ProductFieldConfig, ProductFieldKey } from '@/shared/types';
+import {
+  customerService,
+  orderService,
+  productConfigService,
+  materialCenterConfigService,
+  salesTypeConfigService,
+} from '@/versions/v1/services';
+import type {
+  Customer,
+  MaterialCenterConfig,
+  ProductDisplay,
+  ProductFieldConfig,
+  ProductFieldKey,
+  SalesTypeConfig,
+} from '@/shared/types';
 
 const headingFieldKeys: ProductFieldKey[] = ['name', 'printName', 'productAlias'];
 const metaFieldKeys: ProductFieldKey[] = [
@@ -117,6 +130,10 @@ function formatCurrencyValue(value: number | null | undefined): string | null {
   }
 
   return formatCurrency(value);
+}
+
+function normalizeStateName(value: string | undefined | null): string {
+  return value?.trim().toLowerCase() || '';
 }
 
 function getProductFieldDisplayValue(
@@ -279,6 +296,17 @@ function OrderPageInner() {
   const [productFieldConfig, setProductFieldConfig] = useState<ProductFieldConfig[]>(
     defaultProductFieldConfig
   );
+  const [salesTypeConfig, setSalesTypeConfig] = useState<SalesTypeConfig | null>(null);
+  const [salesTypeConfigLoading, setSalesTypeConfigLoading] = useState(false);
+  const [salesTypeConfigError, setSalesTypeConfigError] = useState<string | null>(null);
+  const [materialCenterConfig, setMaterialCenterConfig] = useState<MaterialCenterConfig | null>(
+    null
+  );
+  const [materialCenterConfigLoading, setMaterialCenterConfigLoading] = useState(false);
+  const [materialCenterConfigError, setMaterialCenterConfigError] = useState<string | null>(null);
+  const [currentCustomerRecord, setCurrentCustomerRecord] = useState<Customer | null>(null);
+  const [currentCustomerLoading, setCurrentCustomerLoading] = useState(false);
+  const [currentCustomerError, setCurrentCustomerError] = useState<string | null>(null);
   const isSalesman = user?.role === 'salesman';
 
   // Determine if we need to load products - simple check using store state
@@ -545,6 +573,148 @@ function OrderPageInner() {
     void loadProductFieldConfig();
   }, [hasHydrated, isAuthenticated]);
 
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || !selectedCompany) {
+      setSalesTypeConfig(null);
+      setSalesTypeConfigError(null);
+      setSalesTypeConfigLoading(false);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadSalesTypeConfig = async () => {
+      setSalesTypeConfigLoading(true);
+      setSalesTypeConfigError(null);
+
+      try {
+        const config = await salesTypeConfigService.getSalesTypeConfig(
+          selectedCompany.companyId,
+          selectedCompany.financialYear
+        );
+
+        if (isActive) {
+          setSalesTypeConfig(config);
+        }
+      } catch (error) {
+        if (isActive) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Failed to load sales type configuration.';
+          setSalesTypeConfig(null);
+          setSalesTypeConfigError(message);
+        }
+      } finally {
+        if (isActive) {
+          setSalesTypeConfigLoading(false);
+        }
+      }
+    };
+
+    void loadSalesTypeConfig();
+
+    return () => {
+      isActive = false;
+    };
+  }, [hasHydrated, isAuthenticated, selectedCompany]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || !selectedCompany) {
+      setMaterialCenterConfig(null);
+      setMaterialCenterConfigError(null);
+      setMaterialCenterConfigLoading(false);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadMaterialCenterConfig = async () => {
+      setMaterialCenterConfigLoading(true);
+      setMaterialCenterConfigError(null);
+
+      try {
+        const config = await materialCenterConfigService.getMaterialCenterConfig(
+          selectedCompany.companyId,
+          selectedCompany.financialYear
+        );
+
+        if (isActive) {
+          setMaterialCenterConfig(config);
+        }
+      } catch (error) {
+        if (isActive) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Failed to load material center configuration.';
+          setMaterialCenterConfig(null);
+          setMaterialCenterConfigError(message);
+        }
+      } finally {
+        if (isActive) {
+          setMaterialCenterConfigLoading(false);
+        }
+      }
+    };
+
+    void loadMaterialCenterConfig();
+
+    return () => {
+      isActive = false;
+    };
+  }, [hasHydrated, isAuthenticated, selectedCompany]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || !selectedCompany || user?.role !== 'customer') {
+      setCurrentCustomerRecord(null);
+      setCurrentCustomerError(null);
+      setCurrentCustomerLoading(false);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadCurrentCustomer = async () => {
+      setCurrentCustomerLoading(true);
+      setCurrentCustomerError(null);
+
+      try {
+        const customerRecords = await customerService.getCustomersByCompany(
+          selectedCompany.companyId,
+          selectedCompany.financialYear
+        );
+        const matchedCustomer =
+          customerRecords.find((customer) => customer.id === user.id) ?? null;
+
+        if (!matchedCustomer) {
+          throw new Error('Unable to resolve the logged-in customer for the selected company.');
+        }
+
+        if (isActive) {
+          setCurrentCustomerRecord(matchedCustomer);
+        }
+      } catch (error) {
+        if (isActive) {
+          const message =
+            error instanceof Error ? error.message : 'Failed to load customer state.';
+          setCurrentCustomerRecord(null);
+          setCurrentCustomerError(message);
+        }
+      } finally {
+        if (isActive) {
+          setCurrentCustomerLoading(false);
+        }
+      }
+    };
+
+    void loadCurrentCustomer();
+
+    return () => {
+      isActive = false;
+    };
+  }, [hasHydrated, isAuthenticated, selectedCompany, user]);
+
   const filteredCustomers = useMemo(
     () =>
       customers.filter((customer) => {
@@ -558,6 +728,14 @@ function OrderPageInner() {
       }),
     [customerSearch, customers]
   );
+  const selectedCustomerRecord = useMemo(
+    () => customers.find((customer) => customer.id === customerId) ?? null,
+    [customerId, customers]
+  );
+  const activeCustomerRecord = isSalesman ? selectedCustomerRecord : currentCustomerRecord;
+  const activeCustomerState = activeCustomerRecord?.state?.trim() || '';
+  const activeMaterialCenterId = materialCenterConfig?.materialCenterId?.trim() || '';
+  const activeMaterialCenterName = materialCenterConfig?.materialCenterName?.trim() || '';
 
   const canBrowseProducts = Boolean(selectedCompany) && (!isSalesman || Boolean(customerId));
 
@@ -600,9 +778,105 @@ function OrderPageInner() {
       });
       return;
     }
+
+    if (salesTypeConfigLoading || materialCenterConfigLoading || currentCustomerLoading) {
+      toast({
+        variant: 'destructive',
+        title: 'Please wait',
+        description: 'Order configuration details are still loading.',
+      });
+      return;
+    }
+
+    if (salesTypeConfigError) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing sales type configuration',
+        description: salesTypeConfigError,
+      });
+      return;
+    }
+
+    if (!salesTypeConfig) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing sales type configuration',
+        description: 'Configure same-state and interstate sales types for this company first.',
+      });
+      return;
+    }
+
+    if (materialCenterConfigError) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing material center configuration',
+        description: materialCenterConfigError,
+      });
+      return;
+    }
+
+    if (!materialCenterConfig) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing material center configuration',
+        description: 'Configure a default material center for this company before placing orders.',
+      });
+      return;
+    }
+
+    if (!activeMaterialCenterId || !activeMaterialCenterName) {
+      toast({
+        variant: 'destructive',
+        title: 'Material center required',
+        description: 'Select and save a default material center in Configuration before placing orders.',
+      });
+      return;
+    }
+
+    if (!salesTypeConfig.companyState.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Company state required',
+        description: 'Add the company state in Sales Type Settings before placing orders.',
+      });
+      return;
+    }
+
+    if (!activeCustomerState) {
+      toast({
+        variant: 'destructive',
+        title: 'Customer state unavailable',
+        description:
+          currentCustomerError ||
+          'The selected customer does not have a state configured for tax selection.',
+      });
+      return;
+    }
+
+    const isSameStateOrder =
+      normalizeStateName(activeCustomerState) ===
+      normalizeStateName(salesTypeConfig.companyState);
+    const applicableSaleTypeId = isSameStateOrder
+      ? salesTypeConfig.sameStateSaleTypeId
+      : salesTypeConfig.interstateSaleTypeId;
+    const applicableSaleTypeName = isSameStateOrder
+      ? salesTypeConfig.sameStateSaleTypeName
+      : salesTypeConfig.interstateSaleTypeName;
+
+    if (!applicableSaleTypeId || !applicableSaleTypeName) {
+      toast({
+        variant: 'destructive',
+        title: 'Sales type not configured',
+        description:
+          'Configure both same-state and interstate sales types before placing orders.',
+      });
+      return;
+    }
     
-    const orderCustomerId = user?.role === 'customer' ? user.id : customerId;
-    const orderCustomerName = user?.role === 'customer' ? user.name : customerName;
+    const orderCustomerId =
+      user?.role === 'customer' ? activeCustomerRecord?.id || user.id : customerId;
+    const orderCustomerName =
+      user?.role === 'customer' ? activeCustomerRecord?.name || user.name : customerName;
     
     setIsPlacingOrder(true);
     
@@ -612,6 +886,12 @@ function OrderPageInner() {
         financialYear: selectedCompany?.financialYear,
         customerId: orderCustomerId || '',
         customerName: orderCustomerName || '',
+        customerState: activeCustomerState,
+        companyState: salesTypeConfig.companyState.trim(),
+        saleTypeId: applicableSaleTypeId,
+        saleTypeName: applicableSaleTypeName,
+        materialCenterId: activeMaterialCenterId,
+        materialCenterName: activeMaterialCenterName,
         items: items.map(item => ({
           productId: item.product.id,
           productName: item.product.name,
@@ -1248,6 +1528,29 @@ function OrderPageInner() {
                   {isSalesman && customersError ? (
                     <p className="text-sm text-destructive">{customersError}</p>
                   ) : null}
+
+                  <div className="rounded-xl border bg-muted/20 px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          Material Center
+                        </p>
+                        <p className="font-medium">
+                          {materialCenterConfigLoading
+                            ? 'Loading...'
+                            : activeMaterialCenterName || 'Not configured'}
+                        </p>
+                      </div>
+                      {activeMaterialCenterId ? (
+                        <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                          {activeMaterialCenterId}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {materialCenterConfigError ? (
+                      <p className="mt-2 text-sm text-destructive">{materialCenterConfigError}</p>
+                    ) : null}
+                  </div>
                   
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
@@ -1282,7 +1585,13 @@ function OrderPageInner() {
                   <Button 
                     onClick={handlePlaceOrder} 
                     className="flex-1"
-                    disabled={isPlacingOrder || (user?.role === 'salesman' && !customerId)}
+                    disabled={
+                      isPlacingOrder ||
+                      salesTypeConfigLoading ||
+                      materialCenterConfigLoading ||
+                      currentCustomerLoading ||
+                      (user?.role === 'salesman' && !customerId)
+                    }
                   >
                     {isPlacingOrder ? (
                       <>

@@ -313,6 +313,34 @@ export default function OrdersPage() {
                       <span className="text-sm text-muted-foreground">{t.orderList.customer}</span>
                       <span className="font-medium">{selectedOrder.customerName}</span>
                     </div>
+
+                    {selectedOrder.materialCenterName ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Material Center</span>
+                        <div className="text-right">
+                          <p className="font-medium">{selectedOrder.materialCenterName}</p>
+                          {selectedOrder.materialCenterId ? (
+                            <p className="text-xs text-muted-foreground">
+                              ID {selectedOrder.materialCenterId}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {selectedOrder.saleTypeName ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Sales Type</span>
+                        <div className="text-right">
+                          <p className="font-medium">{selectedOrder.saleTypeName}</p>
+                          {selectedOrder.saleTypeId ? (
+                            <p className="text-xs text-muted-foreground">
+                              ID {selectedOrder.saleTypeId}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
                     
                     <div className="space-y-2">
                       <span className="text-sm text-muted-foreground">{t.order.products}</span>

@@ -14,6 +14,12 @@ interface CreateOrderBody {
   financialYear?: string;
   customerId?: string;
   customerName?: string;
+  customerState?: string;
+  companyState?: string;
+  saleTypeId?: string;
+  saleTypeName?: string;
+  materialCenterId?: string;
+  materialCenterName?: string;
   createdBy?: string;
   createdByRole?: 'customer' | 'salesman' | 'admin';
   notes?: string;
@@ -110,6 +116,12 @@ export async function POST(request: NextRequest) {
     if (
       !body.customerId ||
       !body.customerName ||
+      !body.customerState ||
+      !body.companyState ||
+      !body.saleTypeId ||
+      !body.saleTypeName ||
+      !body.materialCenterId ||
+      !body.materialCenterName ||
       !body.createdBy ||
       !body.createdByRole ||
       !Array.isArray(body.items) ||
@@ -118,7 +130,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Customer, creator, and at least one item are required.',
+          error: 'Customer, sales type, material center, creator, and at least one item are required.',
         },
         { status: 400 }
       );
@@ -150,6 +162,12 @@ export async function POST(request: NextRequest) {
       financialYear: body.financialYear,
       customerId: body.customerId,
       customerName: body.customerName,
+      customerState: body.customerState,
+      companyState: body.companyState,
+      saleTypeId: body.saleTypeId,
+      saleTypeName: body.saleTypeName,
+      materialCenterId: body.materialCenterId,
+      materialCenterName: body.materialCenterName,
       createdBy: body.createdBy,
       createdByRole: body.createdByRole,
       notes: body.notes,

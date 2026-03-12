@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import {
+  BadgePercent,
   LayoutDashboard,
   ShoppingCart,
   ClipboardList,
@@ -19,8 +20,10 @@ import {
   ChevronsRight,
   Menu,
   Package,
+  Settings2,
   SlidersHorizontal,
   Users,
+  Warehouse,
 } from 'lucide-react';
 import { useAuthStore, useCartStore } from '../lib/stores';
 import { useTranslation } from '../lib/language-context';
@@ -36,8 +39,11 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ShoppingCart,
   ClipboardList,
   Package,
+  Settings2,
+  BadgePercent,
   SlidersHorizontal,
   Users,
+  Warehouse,
 };
 
 const SIDEBAR_STORAGE_KEY = 'busy-notify-sidebar-collapsed';
@@ -90,6 +96,14 @@ function AppShellContent({
   const role = user?.role as Role;
   const navigation = getNavigationForRole(role);
 
+  const resolveNavLabel = (item: NavigationItem) =>
+    item.labelKey.split('.').reduce((obj: unknown, key: string) => {
+      if (obj && typeof obj === 'object') {
+        return (obj as Record<string, unknown>)[key];
+      }
+      return item.labelKey;
+    }, t) as string;
+
   useEffect(() => {
     window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
@@ -103,21 +117,68 @@ function AppShellContent({
     options?: {
       mobile?: boolean;
       collapsed?: boolean;
+      depth?: number;
     }
   ) => {
     const mobile = options?.mobile ?? false;
     const collapsed = options?.collapsed ?? false;
+    const depth = options?.depth ?? 0;
 
     return items.map((item) => {
       const Icon = iconMap[item.icon || 'LayoutDashboard'];
-      const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-      const label = item.labelKey.split('.').reduce((obj: unknown, key: string) => {
-        if (obj && typeof obj === 'object') {
-          return (obj as Record<string, unknown>)[key];
+      const label = resolveNavLabel(item);
+      const hasChildren = Boolean(item.children && item.children.length > 0);
+      const isActive =
+        item.href !== undefined &&
+        (pathname === item.href || pathname.startsWith(`${item.href}/`));
+      const childIsActive =
+        hasChildren &&
+        item.children!.some(
+          (child) =>
+            child.href !== undefined &&
+            (pathname === child.href || pathname.startsWith(`${child.href}/`))
+        );
+
+      if (hasChildren) {
+        if (collapsed && !mobile) {
+          return (
+            <React.Fragment key={item.id}>
+              {renderNavItems(item.children!, {
+                mobile,
+                collapsed,
+                depth: depth + 1,
+              })}
+            </React.Fragment>
+          );
         }
-        return item.labelKey;
-      }, t) as string;
-      
+
+        return (
+          <div key={item.id} className="space-y-1">
+            <div
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold',
+                depth > 0 ? 'ml-3' : '',
+                childIsActive ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="truncate">{label}</span>
+            </div>
+            <div className={cn('space-y-1', depth >= 0 ? 'ml-4 border-l pl-3' : '')}>
+              {renderNavItems(item.children!, {
+                mobile,
+                collapsed,
+                depth: depth + 1,
+              })}
+            </div>
+          </div>
+        );
+      }
+
+      if (!item.href) {
+        return null;
+      }
+
       return (
         <Link
           key={item.id}
@@ -130,15 +191,14 @@ function AppShellContent({
             collapsed && !mobile
               ? 'justify-center px-0 py-3'
               : 'items-center gap-3 px-3 py-2',
+            !collapsed && !mobile && depth > 0 ? 'ml-1' : '',
             isActive
               ? 'bg-primary text-primary-foreground hover:bg-primary'
               : 'text-muted-foreground'
           )}
         >
           <Icon className="h-4 w-4 shrink-0" />
-          {!collapsed || mobile ? (
-            <span className="truncate">{label}</span>
-          ) : null}
+          {!collapsed || mobile ? <span className="truncate">{label}</span> : null}
         </Link>
       );
     });
