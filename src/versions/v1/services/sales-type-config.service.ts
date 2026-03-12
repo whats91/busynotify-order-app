@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements service-layer behavior for Sales Type Config.Service.
+ * Primary Functionality: Coordinates repository calls and domain logic for higher-level app features.
+ * Interlinked With: src/shared/types/index.ts, src/versions/v1/repositories/sales-type-config.repository.ts
+ * Role: application data/service layer.
+ */
 import type { SalesTypeConfig, UpdateSalesTypeConfigPayload } from '../../../shared/types';
 import { salesTypeConfigRepository } from '../repositories/sales-type-config.repository';
 

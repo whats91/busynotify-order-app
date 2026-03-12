@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements the Next.js page for dashboard.
+ * Primary Functionality: Composes route-level UI, data fetching, and user interactions for this page.
+ * Interlinked With: src/components/ui/button.tsx, src/components/ui/card.tsx, src/shared/components/app-shell.tsx, src/shared/components/format-currency.tsx
+ * Role: role-based user-facing UI.
+ */
 // =====================================================
 // DASHBOARD PAGE - Role-based Dashboard
 // =====================================================

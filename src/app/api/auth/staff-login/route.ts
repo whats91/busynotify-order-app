@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / auth / staff login.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: src/app/api/_lib/private-api-session.ts, src/lib/server/salesmen-db.ts, src/shared/types/index.ts
+ * Role: authentication backend.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authenticateSalesman } from '@/lib/server/salesmen-db';

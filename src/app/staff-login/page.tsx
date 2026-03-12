@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements the Next.js page for staff login.
+ * Primary Functionality: Composes route-level UI, data fetching, and user interactions for this page.
+ * Interlinked With: src/components/ui/alert.tsx, src/components/ui/button.tsx, src/components/ui/card.tsx, src/components/ui/input.tsx
+ * Role: public authentication UI.
+ */
 // =====================================================
 // STAFF LOGIN PAGE
 // =====================================================

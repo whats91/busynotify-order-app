@@ -1,4 +1,11 @@
 #!/usr/bin/env node
+/*
+ * File Context:
+ * Purpose: Automates Start With Env tasks for local development or deployment.
+ * Primary Functionality: Executes operational tasks directly from the command line for developers or deploy hooks.
+ * Interlinked With: Invoked from package scripts, deploy hooks, or local developer workflows.
+ * Role: developer tooling.
+ */
 /* eslint-disable @typescript-eslint/no-require-imports */
 
 /**

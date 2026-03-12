@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements server-side infrastructure for Sales Type Config Db.
+ * Primary Functionality: Owns server-side persistence, schema initialization, or backend data access for this domain.
+ * Interlinked With: src/lib/db.ts, src/shared/types/index.ts
+ * Role: server infrastructure.
+ */
 import 'server-only';
 
 import { db } from '@/lib/db';

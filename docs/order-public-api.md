@@ -1,3 +1,9 @@
+<!--
+File Context: Documents Order Public Api for the project.
+Primary Functionality: Explains behavior, setup, or operational expectations for the referenced feature.
+Interlinked With: Linked from project workflows and developer documentation.
+Role: documentation.
+-->
 # Order API
 
 These endpoints are intended for external integrations.

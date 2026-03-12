@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Stores shared client state for Pagination.Store.
+ * Primary Functionality: Keeps client state synchronized across views, refreshes, and related interactions.
+ * Interlinked With: Consumed by client components that need shared state.
+ * Role: shared client state.
+ */
 // =====================================================
 // PAGINATION STORE - Manage pagination state
 // =====================================================

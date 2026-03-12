@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the shared Providers component used across routes.
+ * Primary Functionality: Centralizes reusable UI behavior so multiple pages can share the same presentation and actions.
+ * Interlinked With: src/shared/lib/language-context.tsx
+ * Role: shared UI.
+ */
 // =====================================================
 // PROVIDERS - Client-side wrapper for all providers
 // =====================================================

@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Hi.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: shared project asset.
+ */
 // =====================================================
 // HINDI TRANSLATIONS
 // =====================================================
@@ -119,6 +126,8 @@ export const hi: TranslationSchema = {
     tasks: 'टास्क',
     configuration: 'कॉन्फ़िगरेशन',
     salesmen: 'सेल्समैन',
+    ecommerce: 'ई-कॉमर्स',
+    ecommerceStorefrontSettings: 'स्टोरफ्रंट सेटिंग्स',
     productConfiguration: 'प्रोडक्ट कॉन्फ़िगरेशन',
     salesTypeSettings: 'सेल्स टाइप सेटिंग्स',
     materialCenterConfiguration: 'मटेरियल सेंटर कॉन्फ़िगरेशन',

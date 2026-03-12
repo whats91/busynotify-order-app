@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements the Next.js page for tasks.
+ * Primary Functionality: Composes route-level UI, data fetching, and user interactions for this page.
+ * Interlinked With: src/components/ui/badge.tsx, src/components/ui/button.tsx, src/components/ui/card.tsx, src/components/ui/command.tsx
+ * Role: role-based user-facing UI.
+ */
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';

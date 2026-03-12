@@ -1,3 +1,9 @@
+<!--
+File Context: Documents DEPLOYMENT for the project.
+Primary Functionality: Explains behavior, setup, or operational expectations for the referenced feature.
+Interlinked With: src/lib/env.ts
+Role: documentation.
+-->
 # Busy Notify - Deployment Guide
 
 ## Overview

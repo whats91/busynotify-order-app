@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements the Next.js page for admin / salesmen.
+ * Primary Functionality: Composes route-level UI, data fetching, and user interactions for this page.
+ * Interlinked With: src/components/ui/badge.tsx, src/components/ui/button.tsx, src/components/ui/card.tsx, src/components/ui/dialog.tsx
+ * Role: admin-facing UI.
+ */
 // =====================================================
 // ADMIN SALESMEN PAGE - CRUD Management for Salesmen
 // =====================================================

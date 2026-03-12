@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements service-layer behavior for Customer.Service.
+ * Primary Functionality: Coordinates repository calls and domain logic for higher-level app features.
+ * Interlinked With: src/shared/types/index.ts, src/versions/v1/repositories/customer.repository.ts
+ * Role: application data/service layer.
+ */
 // =====================================================
 // CUSTOMER SERVICE - Business Logic for Customer Operations
 // =====================================================

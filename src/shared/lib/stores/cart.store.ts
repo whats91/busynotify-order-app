@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Stores shared client state for Cart.Store.
+ * Primary Functionality: Keeps client state synchronized across views, refreshes, and related interactions.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: shared client state.
+ */
 // =====================================================
 // CART STORE - Zustand Store for Shopping Cart State
 // =====================================================

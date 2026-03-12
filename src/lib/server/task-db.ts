@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements server-side infrastructure for Task Db.
+ * Primary Functionality: Owns server-side persistence, schema initialization, or backend data access for this domain.
+ * Interlinked With: src/lib/server/salesmen-db.ts, src/lib/tasks-db.ts, src/shared/types/index.ts
+ * Role: server infrastructure.
+ */
 import 'server-only';
 
 import type { PrismaClient } from '@prisma/client';

@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Server.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: No direct internal imports; primarily used by framework or toolchain entry points.
+ * Role: example/demo code.
+ */
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 

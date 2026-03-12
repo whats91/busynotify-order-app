@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Tailwind.Config.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: No direct internal imports; primarily used by framework or toolchain entry points.
+ * Role: shared project asset.
+ */
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 

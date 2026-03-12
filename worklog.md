@@ -1,3 +1,9 @@
+<!--
+File Context: Documents Worklog for the project.
+Primary Functionality: Explains behavior, setup, or operational expectations for the referenced feature.
+Interlinked With: Linked from project workflows and developer documentation.
+Role: shared project asset.
+-->
 # Busy Notify App - Phase 1 Development Worklog
 
 **Website**: [busynotify.in](https://busynotify.in) | **Deploy by**: [whats91.com](https://whats91.com)

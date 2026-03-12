@@ -1,9 +1,17 @@
+/*
+ * File Context:
+ * Purpose: Stores shared client state for Product.Store.
+ * Primary Functionality: Keeps client state synchronized across views, refreshes, and related interactions.
+ * Interlinked With: src/shared/lib/product-pricing.ts, src/shared/types/index.ts
+ * Role: shared client state.
+ */
 // =====================================================
 // PRODUCT STORE - Zustand Store for Products
 // =====================================================
 
 import { create } from 'zustand';
 import type { ApiProduct, ProductDisplay, ProductApiResponse, Company } from '../../types';
+import { resolveProductPricing } from '../product-pricing';
 
 interface ProductState {
   products: ProductDisplay[];
@@ -53,26 +61,6 @@ export const useProductStore = create<ProductState>((set) => ({
     lastFinancialYear: null,
   }),
 }));
-
-function normalizePrice(value: number | null | undefined): number {
-  if (typeof value !== 'number' || Number.isNaN(value) || value < 0) {
-    return 0;
-  }
-
-  return value;
-}
-
-function resolveProductPricing(apiProduct: ApiProduct) {
-  const salesPrice = normalizePrice(apiProduct.product_sales_price);
-  const mrp = normalizePrice(apiProduct.product_mrp);
-  const price = salesPrice > 0 ? salesPrice : mrp;
-
-  return {
-    price,
-    salesPrice,
-    mrp,
-  };
-}
 
 // Helper function to transform API product to display format
 export function transformProduct(apiProduct: ApiProduct): ProductDisplay {

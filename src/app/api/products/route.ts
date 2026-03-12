@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / products.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: Referenced by the Next.js routing runtime and adjacent shared modules.
+ * Role: shared backend.
+ */
 // =====================================================
 // PRODUCTS API ROUTE - Fetch product list from external API
 // =====================================================

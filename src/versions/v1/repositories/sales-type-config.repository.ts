@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements repository access for Sales Type Config.Repository.
+ * Primary Functionality: Wraps lower-level fetch or persistence calls behind a stable repository interface.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: application data/service layer.
+ */
 import type { SalesTypeConfig, UpdateSalesTypeConfigPayload } from '../../../shared/types';
 
 export class SalesTypeConfigRepository {
@@ -6,11 +13,14 @@ export class SalesTypeConfigRepository {
       companyId: String(companyId),
       financialYear,
     });
-    const response = await fetch(`/api/internal/admin/sales-type-configuration?${searchParams.toString()}`, {
-      method: 'GET',
-      credentials: 'same-origin',
-      cache: 'no-store',
-    });
+    const response = await fetch(
+      `/api/internal/sales-type-configuration?${searchParams.toString()}`,
+      {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+      }
+    );
 
     const data = (await response.json()) as {
       success?: boolean;

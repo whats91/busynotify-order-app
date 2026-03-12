@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines shared configuration for Navigation.Config.
+ * Primary Functionality: Exports static configuration values that other modules consume directly.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: shared configuration.
+ */
 // =====================================================
 // NAVIGATION CONFIGURATION
 // Role-based navigation items
@@ -73,6 +80,21 @@ export const navigationItems: NavigationItem[] = [
         labelKey: 'navigation.voucherSeriesConfiguration',
         href: '/admin/voucher-series-configuration',
         icon: 'FileText',
+        roles: ['admin'],
+      },
+    ],
+  },
+  {
+    id: 'ecommerce',
+    labelKey: 'navigation.ecommerce',
+    icon: 'Store',
+    roles: ['admin'],
+    children: [
+      {
+        id: 'ecommerce-storefront-settings',
+        labelKey: 'navigation.ecommerceStorefrontSettings',
+        href: '/admin/ecommerce',
+        icon: 'Settings2',
         roles: ['admin'],
       },
     ],

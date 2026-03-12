@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the shared App Shell component used across routes.
+ * Primary Functionality: Centralizes reusable UI behavior so multiple pages can share the same presentation and actions.
+ * Interlinked With: src/components/ui/button.tsx, src/components/ui/scroll-area.tsx, src/components/ui/sheet.tsx, src/lib/utils.ts
+ * Role: shared UI.
+ */
 // =====================================================
 // APP SHELL - Main Layout with Sidebar and Header
 // =====================================================
@@ -24,6 +31,7 @@ import {
   Package,
   Settings2,
   SlidersHorizontal,
+  Store,
   Users,
   Warehouse,
 } from 'lucide-react';
@@ -48,6 +56,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Users,
   Warehouse,
   FileText,
+  Store,
 };
 
 const SIDEBAR_STORAGE_KEY = 'busy-notify-sidebar-collapsed';

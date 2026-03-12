@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements controller-level coordination for Customer.Controller.
+ * Primary Functionality: Bridges UI or orchestration needs with the underlying service layer.
+ * Interlinked With: src/shared/types/index.ts, src/versions/v1/services/customer.service.ts
+ * Role: application data/service layer.
+ */
 // =====================================================
 // CUSTOMER CONTROLLER - Request/Response Handling for Customers
 // =====================================================

@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Language Context.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: src/shared/lib/stores/index.ts, src/shared/translations/index.ts, src/shared/types/index.ts
+ * Role: shared project asset.
+ */
 // =====================================================
 // LANGUAGE PROVIDER - React Context for Translations
 // =====================================================

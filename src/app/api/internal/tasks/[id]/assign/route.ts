@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / internal / tasks / :id / assign.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: src/app/api/internal/tasks/_lib/task-route-auth.ts, src/lib/server/task-db.ts
+ * Role: private authenticated backend.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import {

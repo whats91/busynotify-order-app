@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the reusable Toggle Group UI primitive.
+ * Primary Functionality: Exports a reusable presentational building block that other components compose.
+ * Interlinked With: src/components/ui/toggle.tsx, src/lib/utils.ts
+ * Role: shared UI primitive.
+ */
 "use client"
 
 import * as React from "react"

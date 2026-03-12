@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for En.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: shared project asset.
+ */
 // =====================================================
 // ENGLISH TRANSLATIONS
 // =====================================================
@@ -119,6 +126,8 @@ export const en: TranslationSchema = {
     tasks: 'Tasks',
     configuration: 'Configuration',
     salesmen: 'Salesmen',
+    ecommerce: 'E-commerce',
+    ecommerceStorefrontSettings: 'Storefront Settings',
     productConfiguration: 'Product Configuration',
     salesTypeSettings: 'Sales Type Settings',
     materialCenterConfiguration: 'Material Center Configuration',

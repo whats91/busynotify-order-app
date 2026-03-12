@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements the Next.js page for order.
+ * Primary Functionality: Composes route-level UI, data fetching, and user interactions for this page.
+ * Interlinked With: src/components/ui/badge.tsx, src/components/ui/button.tsx, src/components/ui/card.tsx, src/components/ui/command.tsx
+ * Role: role-based user-facing UI.
+ */
 // =====================================================
 // ORDER PAGE - Product Listing with Pagination and Cart
 // =====================================================

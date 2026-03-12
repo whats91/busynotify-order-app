@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / orders / :id.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: src/lib/server/order-db.ts
+ * Role: shared backend.
+ */
 import { NextResponse } from 'next/server';
 import { getStoredOrderById } from '@/lib/server/order-db';
 

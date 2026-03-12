@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines shared configuration for Product Field.Config.
+ * Primary Functionality: Exports static configuration values that other modules consume directly.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: shared configuration.
+ */
 import type { ProductFieldConfig } from '../types';
 
 export const defaultProductFieldConfig: ProductFieldConfig[] = [

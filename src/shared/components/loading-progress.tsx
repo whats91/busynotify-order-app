@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the shared Loading Progress component used across routes.
+ * Primary Functionality: Centralizes reusable UI behavior so multiple pages can share the same presentation and actions.
+ * Interlinked With: src/lib/utils.ts
+ * Role: shared UI.
+ */
 // =====================================================
 // LOADING PROGRESS BAR - Shows when loading products/company switch
 // =====================================================

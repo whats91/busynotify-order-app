@@ -1,3 +1,9 @@
+<!--
+File Context: Documents README for the project.
+Primary Functionality: Explains behavior, setup, or operational expectations for the referenced feature.
+Interlinked With: Linked from project workflows and developer documentation.
+Role: documentation.
+-->
 # 🚀 Busy Notify - Internal Ordering Portal
 
 A modern, production-ready internal ordering system portal for customers and salesmen. Built with cutting-edge technologies for the [busynotify.in](https://busynotify.in) platform.

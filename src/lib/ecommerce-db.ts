@@ -1,0 +1,66 @@
+/*
+ * File Context:
+ * Purpose: Provides shared infrastructure for Ecommerce Db.
+ * Primary Functionality: Supports shared runtime infrastructure consumed by routes, services, or server helpers.
+ * Interlinked With: No direct internal imports; primarily used by framework or toolchain entry points.
+ * Role: shared infrastructure.
+ */
+import { mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { PrismaClient } from '@prisma/client';
+
+const FALLBACK_DB_PATH = path.join(process.cwd(), 'data', 'busy-notify-ecommerce.sqlite');
+
+const globalForEcommercePrisma = globalThis as unknown as {
+  ecommercePrisma: PrismaClient | undefined;
+};
+
+function normalizeEcommerceDatabaseUrl(databaseUrl?: string): string {
+  const rawUrl = databaseUrl?.trim();
+
+  if (rawUrl?.startsWith('file:')) {
+    const filePath = rawUrl.slice(5);
+    const resolvedPath = filePath
+      ? path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(process.cwd(), filePath)
+      : FALLBACK_DB_PATH;
+
+    mkdirSync(path.dirname(resolvedPath), { recursive: true });
+    return `file:${resolvedPath}`;
+  }
+
+  if (
+    rawUrl &&
+    (rawUrl.endsWith('.db') || rawUrl.endsWith('.sqlite') || rawUrl.endsWith('.sqlite3'))
+  ) {
+    const resolvedPath = path.isAbsolute(rawUrl)
+      ? rawUrl
+      : path.resolve(process.cwd(), rawUrl);
+
+    mkdirSync(path.dirname(resolvedPath), { recursive: true });
+    return `file:${resolvedPath}`;
+  }
+
+  mkdirSync(path.dirname(FALLBACK_DB_PATH), { recursive: true });
+  return `file:${FALLBACK_DB_PATH}`;
+}
+
+const ECOMMERCE_DATABASE_URL = normalizeEcommerceDatabaseUrl(
+  process.env.ECOMMERCE_DATABASE_URL
+);
+
+export const ecommerceDb =
+  globalForEcommercePrisma.ecommercePrisma ??
+  new PrismaClient({
+    datasources: {
+      db: {
+        url: ECOMMERCE_DATABASE_URL,
+      },
+    },
+    log: ['query'],
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForEcommercePrisma.ecommercePrisma = ecommerceDb;
+}

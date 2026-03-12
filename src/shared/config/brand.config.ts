@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines shared configuration for Brand.Config.
+ * Primary Functionality: Exports static configuration values that other modules consume directly.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: shared configuration.
+ */
 // =====================================================
 // WHITE-LABEL CONFIGURATION - Brand & Features
 // This configuration can be customized per tenant/version

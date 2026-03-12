@@ -1,53 +1,44 @@
-// =====================================================
-// ROOT PAGE - Redirects to appropriate dashboard
-// =====================================================
+/*
+ * File Context:
+ * Purpose: Controls the root route and renders the public storefront when e-commerce is enabled.
+ * Primary Functionality: Composes route-level UI, data fetching, and user interactions for this page.
+ * Interlinked With: src/lib/server/ecommerce-storefront.ts, src/shared/components/ecommerce-storefront.tsx
+ * Role: public storefront UI.
+ */
+import { redirect } from 'next/navigation';
+import { EcommerceStorefront } from '@/shared/components/ecommerce-storefront';
+import {
+  getPublicEcommerceStorefrontPayload,
+  isEcommerceEnabled,
+} from '@/lib/server/ecommerce-storefront';
 
-'use client';
+export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
-import { useAuthStore, useHasHydrated } from '@/shared/lib/stores';
+type HomePageProps = {
+  searchParams?:
+    | Record<string, string | string[] | undefined>
+    | Promise<Record<string, string | string[] | undefined>>;
+};
 
-// Maximum time to wait for hydration before forcing redirect
-const HYDRATION_TIMEOUT = 3000;
+function getSingleValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
-export default function HomePage() {
-  const { isAuthenticated, setHasHydrated } = useAuthStore();
-  const hasHydrated = useHasHydrated();
-  const [forceRedirect, setForceRedirect] = useState(false);
-  
-  useEffect(() => {
-    // Safety timeout - force hydration after timeout
-    const safetyTimer = setTimeout(() => {
-      if (!hasHydrated) {
-        console.warn('Hydration timeout - forcing redirect');
-        setHasHydrated(true);
-        setForceRedirect(true);
-      }
-    }, HYDRATION_TIMEOUT);
-    
-    return () => clearTimeout(safetyTimer);
-  }, [hasHydrated, setHasHydrated]);
-  
-  useEffect(() => {
-    // Wait for hydration before redirecting
-    if (!hasHydrated && !forceRedirect) return;
-    
-    // Use window.location.href for full page reload to ensure
-    // destination page reads fresh state from localStorage
-    const timer = setTimeout(() => {
-      if (isAuthenticated) {
-        window.location.href = '/dashboard';
-      } else {
-        window.location.href = '/login';
-      }
-    }, 50);
-    
-    return () => clearTimeout(timer);
-  }, [hasHydrated, isAuthenticated, forceRedirect]);
-  
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-    </div>
-  );
+export default async function HomePage({ searchParams }: HomePageProps) {
+  if (!isEcommerceEnabled()) {
+    redirect('/login');
+  }
+
+  const resolvedSearchParams = (await Promise.resolve(searchParams ?? {})) as Record<
+    string,
+    string | string[] | undefined
+  >;
+  const rawPage = Number(getSingleValue(resolvedSearchParams.page));
+  const payload = await getPublicEcommerceStorefrontPayload({
+    page: Number.isFinite(rawPage) ? rawPage : 1,
+    searchQuery: getSingleValue(resolvedSearchParams.q) || '',
+    selectedCategory: getSingleValue(resolvedSearchParams.category) || 'all',
+  });
+
+  return <EcommerceStorefront payload={payload} />;
 }

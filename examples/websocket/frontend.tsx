@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Frontend.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: src/components/ui/button.tsx, src/components/ui/card.tsx, src/components/ui/input.tsx, src/components/ui/scroll-area.tsx
+ * Role: example/demo code.
+ */
 'use client';
 
 import { useEffect, useState } from 'react';

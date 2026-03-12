@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the shared Next.js layout for layout.tsx.
+ * Primary Functionality: Wraps child routes with shared structure, providers, and layout-level behavior.
+ * Interlinked With: src/app/globals.css, src/components/ui/toaster.tsx, src/shared/components/providers.tsx
+ * Role: role-based user-facing UI.
+ */
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';

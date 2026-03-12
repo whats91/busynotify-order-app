@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Encapsulates reusable React behavior for Use Toast.
+ * Primary Functionality: Packages reusable React state and effect behavior behind a dedicated hook API.
+ * Interlinked With: src/components/ui/toast.tsx
+ * Role: shared frontend behavior.
+ */
 "use client"
 
 // Inspired by react-hot-toast library

@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the shared Task Priority Badge component used across routes.
+ * Primary Functionality: Centralizes reusable UI behavior so multiple pages can share the same presentation and actions.
+ * Interlinked With: src/components/ui/badge.tsx, src/lib/utils.ts, src/shared/types/index.ts
+ * Role: shared UI.
+ */
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';

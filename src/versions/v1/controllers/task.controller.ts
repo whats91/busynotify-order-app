@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements controller-level coordination for Task.Controller.
+ * Primary Functionality: Bridges UI or orchestration needs with the underlying service layer.
+ * Interlinked With: src/shared/types/index.ts, src/versions/v1/services/task.service.ts
+ * Role: application data/service layer.
+ */
 import type {
   AssignTaskPayload,
   CreateTaskCommentPayload,

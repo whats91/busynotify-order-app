@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements repository access for Sale Type.Repository.
+ * Primary Functionality: Wraps lower-level fetch or persistence calls behind a stable repository interface.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: application data/service layer.
+ */
 import type { SaleType } from '../../../shared/types';
 
 export class SaleTypeRepository {

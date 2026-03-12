@@ -1,3 +1,8 @@
+# File Context:
+# Purpose: Defines the Caddy web server and reverse-proxy configuration.
+# Primary Functionality: Configures HTTP serving, proxy behavior, and production routing rules.
+# Interlinked With: No direct internal imports; primarily used by framework or toolchain entry points.
+# Role: deployment/runtime configuration.
 :81 {
 	@transform_port_query {
 		query XTransformPort=*

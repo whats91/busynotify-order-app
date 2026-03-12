@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / public / orders / :id / status.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: src/app/api/_lib/public-api-auth.ts, src/lib/server/order-db.ts, src/shared/types/index.ts
+ * Role: public integration backend.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requirePublicApiAuth } from '@/app/api/_lib/public-api-auth';

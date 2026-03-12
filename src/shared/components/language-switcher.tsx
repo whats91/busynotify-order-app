@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the shared Language Switcher component used across routes.
+ * Primary Functionality: Centralizes reusable UI behavior so multiple pages can share the same presentation and actions.
+ * Interlinked With: src/components/ui/button.tsx, src/components/ui/dropdown-menu.tsx, src/shared/lib/language-context.tsx
+ * Role: shared UI.
+ */
 // =====================================================
 // LANGUAGE SWITCHER COMPONENT
 // =====================================================

@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements repository access for Customer.Repository.
+ * Primary Functionality: Wraps lower-level fetch or persistence calls behind a stable repository interface.
+ * Interlinked With: src/shared/types/index.ts, src/versions/v1/mock-data/customers.ts
+ * Role: application data/service layer.
+ */
 // =====================================================
 // CUSTOMER REPOSITORY - Data Access Layer for Customers
 // =====================================================

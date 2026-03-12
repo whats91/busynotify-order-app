@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the reusable Badge UI primitive.
+ * Primary Functionality: Exports a reusable presentational building block that other components compose.
+ * Interlinked With: src/lib/utils.ts
+ * Role: shared UI primitive.
+ */
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"

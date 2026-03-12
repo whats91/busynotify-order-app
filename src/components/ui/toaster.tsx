@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the reusable Toaster UI primitive.
+ * Primary Functionality: Exports a reusable presentational building block that other components compose.
+ * Interlinked With: src/components/ui/toast.tsx, src/hooks/use-toast.ts
+ * Role: shared UI primitive.
+ */
 "use client"
 
 import { useToast } from "@/hooks/use-toast"

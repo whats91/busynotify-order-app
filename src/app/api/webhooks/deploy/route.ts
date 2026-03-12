@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / webhooks / deploy.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: Referenced by the Next.js routing runtime and adjacent shared modules.
+ * Role: shared backend.
+ */
 import { appendFileSync, existsSync, mkdirSync, openSync } from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';

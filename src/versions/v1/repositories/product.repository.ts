@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements repository access for Product.Repository.
+ * Primary Functionality: Wraps lower-level fetch or persistence calls behind a stable repository interface.
+ * Interlinked With: src/shared/types/index.ts, src/versions/v1/mock-data/products.ts
+ * Role: application data/service layer.
+ */
 // =====================================================
 // PRODUCT REPOSITORY - Data Access Layer for Products
 // =====================================================

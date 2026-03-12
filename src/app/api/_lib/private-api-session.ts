@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Private Api Session.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: shared backend.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@/shared/types';
 

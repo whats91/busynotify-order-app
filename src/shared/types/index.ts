@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Index.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: No direct internal imports; primarily used by framework or toolchain entry points.
+ * Role: shared project asset.
+ */
 // =====================================================
 // SHARED TYPES - Core Domain Models
 // These types are shared across all versions
@@ -349,6 +356,87 @@ export interface ProductDisplay {
   hsnCode: string;
   // Keep reference to full product data
   _fullData?: ApiProduct;
+}
+
+export interface EcommerceStorefrontContext {
+  companyId: number | null;
+  financialYear: string;
+  companyName?: string;
+  erpCode?: string;
+  updatedAt?: string;
+}
+
+export interface EcommerceStorefrontSettings {
+  companyId: number;
+  financialYear: string;
+  storeTitle: string;
+  storeSubtitle: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroCtaLabel: string;
+  categoriesTitle: string;
+  catalogTitle: string;
+  emptyStateTitle: string;
+  emptyStateDescription: string;
+  checkoutLoginTitle: string;
+  checkoutLoginDescription: string;
+  footerNote: string;
+  updatedAt?: string;
+}
+
+export interface EcommerceCatalogProduct {
+  productId: string;
+  name: string;
+  alias?: string;
+  printName?: string;
+  groupName: string;
+  price: number;
+  salesPrice: number;
+  mrp: number;
+  stock: number;
+  unit: string;
+  taxRate: number;
+  taxName: string;
+  hsnCode: string;
+}
+
+export interface EcommerceStorefrontPayload {
+  isEnabled: boolean;
+  activeContext: EcommerceStorefrontContext | null;
+  selectedContext: EcommerceStorefrontContext | null;
+  settings: EcommerceStorefrontSettings | null;
+  products: EcommerceCatalogProduct[];
+  categories: string[];
+  filters: {
+    searchQuery: string;
+    selectedCategory: string;
+  };
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+    startIndex: number;
+    endIndex: number;
+  };
+  error?: string;
+}
+
+export interface UpdateEcommerceStorefrontPayload {
+  companyId: number;
+  financialYear: string;
+  storeTitle: string;
+  storeSubtitle: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroCtaLabel: string;
+  categoriesTitle: string;
+  catalogTitle: string;
+  emptyStateTitle: string;
+  emptyStateDescription: string;
+  checkoutLoginTitle: string;
+  checkoutLoginDescription: string;
+  footerNote: string;
 }
 
 export const PRODUCT_FIELD_KEYS = [
@@ -793,6 +881,8 @@ export interface TranslationSchema {
     tasks: string;
     configuration: string;
     salesmen: string;
+    ecommerce: string;
+    ecommerceStorefrontSettings: string;
     productConfiguration: string;
     salesTypeSettings: string;
     materialCenterConfiguration: string;

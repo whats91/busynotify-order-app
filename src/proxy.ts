@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Configures request-time proxy and route-guard behavior for the app.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: src/app/api/_lib/private-api-session.ts
+ * Role: shared project asset.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import {
   createForbiddenPrivateApiResponse,

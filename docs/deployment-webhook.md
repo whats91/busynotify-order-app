@@ -1,3 +1,9 @@
+<!--
+File Context: Documents Deployment Webhook for the project.
+Primary Functionality: Explains behavior, setup, or operational expectations for the referenced feature.
+Interlinked With: Linked from project workflows and developer documentation.
+Role: documentation.
+-->
 # Deployment Webhook
 
 ## Webhook Endpoint

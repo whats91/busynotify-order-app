@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements server-side infrastructure for Indian States.
+ * Primary Functionality: Owns server-side persistence, schema initialization, or backend data access for this domain.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: server infrastructure.
+ */
 import 'server-only';
 
 import type { IndianState } from '@/shared/types';

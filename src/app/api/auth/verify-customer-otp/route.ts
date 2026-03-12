@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / auth / verify customer otp.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: src/app/api/auth/_lib/customer-otp.ts
+ * Role: authentication backend.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import {
   buildCustomerOtpKey,

@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Customer Otp.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: authentication backend.
+ */
 // =====================================================
 // CUSTOMER OTP HELPERS - Validation, OTP persistence, and session creation
 // =====================================================

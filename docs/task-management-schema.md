@@ -1,3 +1,9 @@
+<!--
+File Context: Documents Task Management Schema for the project.
+Primary Functionality: Explains behavior, setup, or operational expectations for the referenced feature.
+Interlinked With: Linked from project workflows and developer documentation.
+Role: documentation.
+-->
 # Task Management System v1
 
 ## Overview

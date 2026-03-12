@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements the Next.js page for admin / sales type settings.
+ * Primary Functionality: Composes route-level UI, data fetching, and user interactions for this page.
+ * Interlinked With: src/components/ui/button.tsx, src/components/ui/card.tsx, src/components/ui/label.tsx, src/components/ui/select.tsx
+ * Role: admin-facing UI.
+ */
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';

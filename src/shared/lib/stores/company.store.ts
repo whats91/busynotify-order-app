@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Stores shared client state for Company.Store.
+ * Primary Functionality: Keeps client state synchronized across views, refreshes, and related interactions.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: shared client state.
+ */
 // =====================================================
 // COMPANY STORE - Zustand Store for Company Selection
 // =====================================================

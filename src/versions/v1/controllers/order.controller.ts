@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements controller-level coordination for Order.Controller.
+ * Primary Functionality: Bridges UI or orchestration needs with the underlying service layer.
+ * Interlinked With: src/shared/types/index.ts, src/versions/v1/services/order.service.ts
+ * Role: application data/service layer.
+ */
 // =====================================================
 // ORDER CONTROLLER - Request/Response Handling for Orders
 // =====================================================

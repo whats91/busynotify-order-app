@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / auth / logout.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: src/app/api/_lib/private-api-session.ts
+ * Role: authentication backend.
+ */
 import { NextResponse } from 'next/server';
 import {
   getExpiredPrivateApiSessionCookieOptions,

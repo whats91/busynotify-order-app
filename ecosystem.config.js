@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Ecosystem.Config.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: No direct internal imports; primarily used by framework or toolchain entry points.
+ * Role: developer tooling.
+ */
 /**
  * PM2 Ecosystem Configuration for Busy Notify
  * 

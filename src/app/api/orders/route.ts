@@ -1,5 +1,17 @@
+/*
+ * File Context:
+ * Purpose: Handles the API route for api / orders.
+ * Primary Functionality: Validates incoming requests, calls service or server modules, and returns framework JSON responses.
+ * Interlinked With: src/lib/server/order-db.ts, src/shared/types/index.ts
+ * Role: shared backend.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import {
+  createForbiddenPrivateApiResponse,
+  createUnauthorizedPrivateApiResponse,
+  getPrivateApiSession,
+} from '@/app/api/_lib/private-api-session';
 import {
   createStoredOrder,
   listStoredOrders,
@@ -111,7 +123,24 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getPrivateApiSession(request);
+
+    if (!session) {
+      return createUnauthorizedPrivateApiResponse();
+    }
+
+    if (
+      session.user.role !== 'admin' &&
+      session.user.role !== 'customer' &&
+      session.user.role !== 'salesman'
+    ) {
+      return createForbiddenPrivateApiResponse();
+    }
+
     const body = (await request.json()) as CreateOrderBody;
+    const currentUser = session.user;
+    const effectiveCreatedBy = currentUser.id;
+    const effectiveCreatedByRole = currentUser.role;
 
     if (
       !body.customerId ||
@@ -122,8 +151,6 @@ export async function POST(request: NextRequest) {
       !body.saleTypeName ||
       !body.materialCenterId ||
       !body.materialCenterName ||
-      !body.createdBy ||
-      !body.createdByRole ||
       !Array.isArray(body.items) ||
       body.items.length === 0
     ) {
@@ -133,6 +160,16 @@ export async function POST(request: NextRequest) {
           error: 'Customer, sales type, material center, creator, and at least one item are required.',
         },
         { status: 400 }
+      );
+    }
+
+    if (effectiveCreatedByRole === 'customer' && body.customerId !== currentUser.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Customers can only place orders for their own account.',
+        },
+        { status: 403 }
       );
     }
 
@@ -168,8 +205,8 @@ export async function POST(request: NextRequest) {
       saleTypeName: body.saleTypeName,
       materialCenterId: body.materialCenterId,
       materialCenterName: body.materialCenterName,
-      createdBy: body.createdBy,
-      createdByRole: body.createdByRole,
+      createdBy: effectiveCreatedBy,
+      createdByRole: effectiveCreatedByRole,
       notes: body.notes,
       items: body.items.map((item) => ({
         productId: item.productId as string,

@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Defines the project file for Task Route Auth.
+ * Primary Functionality: Provides file-specific behavior or configuration for the surrounding project module.
+ * Interlinked With: src/app/api/_lib/private-api-session.ts, src/lib/server/task-db.ts, src/shared/types/index.ts
+ * Role: private authenticated backend.
+ */
 import type { NextRequest, NextResponse } from 'next/server';
 import {
   createForbiddenPrivateApiResponse,

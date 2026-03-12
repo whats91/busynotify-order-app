@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements repository access for Voucher Series Config.Repository.
+ * Primary Functionality: Wraps lower-level fetch or persistence calls behind a stable repository interface.
+ * Interlinked With: src/shared/types/index.ts
+ * Role: application data/service layer.
+ */
 import type {
   UpdateVoucherSeriesConfigPayload,
   VoucherSeriesConfig,

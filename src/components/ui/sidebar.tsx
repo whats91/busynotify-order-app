@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Provides the reusable Sidebar UI primitive.
+ * Primary Functionality: Exports a reusable presentational building block that other components compose.
+ * Interlinked With: src/components/ui/button.tsx, src/components/ui/input.tsx, src/components/ui/separator.tsx, src/components/ui/sheet.tsx
+ * Role: shared UI primitive.
+ */
 "use client"
 
 import * as React from "react"

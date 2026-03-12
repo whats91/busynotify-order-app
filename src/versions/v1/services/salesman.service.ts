@@ -1,3 +1,10 @@
+/*
+ * File Context:
+ * Purpose: Implements service-layer behavior for Salesman.Service.
+ * Primary Functionality: Coordinates repository calls and domain logic for higher-level app features.
+ * Interlinked With: src/shared/types/index.ts, src/versions/v1/repositories/salesman.repository.ts
+ * Role: application data/service layer.
+ */
 // =====================================================
 // SALESMAN SERVICE - Business Logic for Admin CRUD
 // =====================================================
