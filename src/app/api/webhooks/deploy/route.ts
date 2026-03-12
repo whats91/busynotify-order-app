@@ -29,6 +29,40 @@ function isAuthorized(request: NextRequest): boolean {
   return timingSafeEqual(expectedBuffer, providedBuffer);
 }
 
+function getProjectRootCandidates(): string[] {
+  const cwd = process.cwd();
+  const configuredProjectPath = process.env.DEPLOY_PROJECT_PATH?.trim();
+  const candidates = [
+    configuredProjectPath,
+    cwd,
+    path.resolve(cwd, '..'),
+    path.resolve(cwd, '..', '..'),
+    path.resolve(cwd, '..', '..', '..'),
+  ].filter((value): value is string => Boolean(value));
+
+  return [...new Set(candidates)];
+}
+
+function resolveDeployTarget():
+  | { projectRoot: string; deployScriptPath: string }
+  | { checkedPaths: string[] } {
+  const checkedPaths: string[] = [];
+
+  for (const projectRoot of getProjectRootCandidates()) {
+    const deployScriptPath = path.join(projectRoot, 'scripts', 'deploy.js');
+    checkedPaths.push(deployScriptPath);
+
+    if (existsSync(deployScriptPath)) {
+      return {
+        projectRoot,
+        deployScriptPath,
+      };
+    }
+  }
+
+  return { checkedPaths };
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json(
@@ -40,24 +74,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const projectRoot = process.cwd();
-  const deployScriptPath = path.join(projectRoot, 'scripts', 'deploy.js');
+  const deployTarget = resolveDeployTarget();
+
+  if (!('projectRoot' in deployTarget)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Deploy script not found.',
+        checkedPaths: deployTarget.checkedPaths,
+        cwd: process.cwd(),
+      },
+      { status: 500 }
+    );
+  }
+
+  const { projectRoot, deployScriptPath } = deployTarget;
   const lockFilePath =
     process.env.DEPLOY_LOCK_FILE || path.join(projectRoot, '.deploy.lock');
   const logDirectory = path.join(projectRoot, 'logs');
   const webhookLogPath =
     process.env.DEPLOY_WEBHOOK_LOG_PATH ||
     path.join(logDirectory, 'deploy-webhook.log');
-
-  if (!existsSync(deployScriptPath)) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Deploy script not found.',
-      },
-      { status: 500 }
-    );
-  }
 
   if (existsSync(lockFilePath)) {
     return NextResponse.json(
