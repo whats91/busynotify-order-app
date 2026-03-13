@@ -15,6 +15,7 @@ import type { Product, CartItem } from '../../types';
 
 interface CartItemWithTax extends CartItem {
   taxRate: number;
+  taxAmount: number;
 }
 
 interface CartState {
@@ -47,10 +48,13 @@ interface PersistedCartState {
 function calculateTotals(items: CartItemWithTax[]) {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  // Calculate tax based on each item's tax rate
-  const tax = items.reduce((sum, item) => sum + (item.totalPrice * item.taxRate / 100), 0);
+  const tax = items.reduce((sum, item) => sum + item.taxAmount, 0);
   const total = subtotal + tax;
   return { totalItems, subtotal, tax, total };
+}
+
+function calculateItemTaxAmount(totalPrice: number, taxRate: number) {
+  return Number(((totalPrice * taxRate) / 100).toFixed(6));
 }
 
 function normalizePersistedItems(items: PersistedCartState['items']): CartItemWithTax[] {
@@ -68,14 +72,21 @@ function normalizePersistedItems(items: PersistedCartState['items']): CartItemWi
       typeof item.unitPrice === 'number' && item.unitPrice >= 0
         ? item.unitPrice
         : item.product.price;
-    const taxRate = typeof item.taxRate === 'number' && item.taxRate >= 0 ? item.taxRate : 18;
+    const taxRate =
+      typeof item.taxRate === 'number' && item.taxRate >= 0
+        ? item.taxRate
+        : typeof item.product.taxRate === 'number' && item.product.taxRate >= 0
+          ? item.product.taxRate
+          : 18;
+    const totalPrice = unitPrice * quantity;
 
     normalizedItems.push({
       ...item,
       quantity,
       unitPrice,
-      totalPrice: unitPrice * quantity,
+      totalPrice,
       taxRate,
+      taxAmount: calculateItemTaxAmount(totalPrice, taxRate),
     });
 
     return normalizedItems;
@@ -117,10 +128,12 @@ export const useCartStore = create<CartState>()(
           newItems = items.map((item, index) => {
             if (index === existingIndex) {
               const newQuantity = item.quantity + quantity;
+              const totalPrice = item.unitPrice * newQuantity;
               return {
                 ...item,
                 quantity: newQuantity,
-                totalPrice: item.unitPrice * newQuantity,
+                totalPrice,
+                taxAmount: calculateItemTaxAmount(totalPrice, item.taxRate),
               };
             }
             return item;
@@ -134,6 +147,7 @@ export const useCartStore = create<CartState>()(
             unitPrice: product.price,
             totalPrice: product.price * quantity,
             taxRate,
+            taxAmount: calculateItemTaxAmount(product.price * quantity, taxRate),
           };
           newItems = [...items, newItem];
         }
@@ -156,10 +170,12 @@ export const useCartStore = create<CartState>()(
         
         const newItems = get().items.map((item) => {
           if (item.id === itemId) {
+            const totalPrice = item.unitPrice * quantity;
             return {
               ...item,
               quantity,
-              totalPrice: item.unitPrice * quantity,
+              totalPrice,
+              taxAmount: calculateItemTaxAmount(totalPrice, item.taxRate),
             };
           }
           return item;

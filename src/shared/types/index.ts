@@ -571,6 +571,7 @@ export interface CartItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  taxAmount?: number;
 }
 
 export interface Cart {

@@ -98,7 +98,7 @@ export const hi: TranslationSchema = {
     removeItem: 'हटाएं',
     clearCart: 'कार्ट साफ़ करें',
     subtotal: 'उप-योग',
-    tax: 'कर (18% जीएसटी)',
+    tax: 'कर',
     grandTotal: 'कुल योग',
     placeOrder: 'ऑर्डर दें',
     orderFor: 'ऑर्डर द्वारा',

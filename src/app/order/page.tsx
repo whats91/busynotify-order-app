@@ -315,6 +315,21 @@ function OrderPageInner() {
   const [currentCustomerLoading, setCurrentCustomerLoading] = useState(false);
   const [currentCustomerError, setCurrentCustomerError] = useState<string | null>(null);
   const isSalesman = user?.role === 'salesman';
+  const taxBreakdown = useMemo(() => {
+    const breakdown = new Map<number, number>();
+
+    for (const item of items) {
+      const existingTaxAmount = breakdown.get(item.taxRate) ?? 0;
+      breakdown.set(item.taxRate, existingTaxAmount + item.taxAmount);
+    }
+
+    return Array.from(breakdown.entries())
+      .map(([taxRate, taxAmount]) => ({
+        taxRate,
+        taxAmount,
+      }))
+      .sort((left, right) => left.taxRate - right.taxRate);
+  }, [items]);
 
   // Determine if we need to load products - simple check using store state
   const needsToLoadProducts = useMemo(() => {
@@ -1442,6 +1457,9 @@ function OrderPageInner() {
                         <p className="text-sm text-muted-foreground">
                           {formatCurrency(item.unitPrice)} × {item.quantity}
                         </p>
+                        <p className="text-xs text-muted-foreground">
+                          {t.cart.tax} ({item.taxRate}% GST): {formatCurrency(item.taxAmount)}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
@@ -1463,9 +1481,14 @@ function OrderPageInner() {
                           <Plus className="h-3 w-3" />
                         </Button>
                       </div>
-                      <p className="font-medium w-20 text-right">
-                        {formatCurrency(item.totalPrice)}
-                      </p>
+                      <div className="w-24 text-right">
+                        <p className="font-medium">
+                          {formatCurrency(item.totalPrice + item.taxAmount)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCurrency(item.totalPrice)} + tax
+                        </p>
+                      </div>
                     </div>
                   ))}
                   
@@ -1564,6 +1587,14 @@ function OrderPageInner() {
                       <span className="text-muted-foreground">{t.cart.subtotal}</span>
                       <span>{formatCurrency(subtotal)}</span>
                     </div>
+                    {taxBreakdown.map((entry) => (
+                      <div key={entry.taxRate} className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">
+                          {t.cart.tax} ({entry.taxRate}% GST)
+                        </span>
+                        <span>{formatCurrency(entry.taxAmount)}</span>
+                      </div>
+                    ))}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t.cart.tax}</span>
                       <span>{formatCurrency(tax)}</span>

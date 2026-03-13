@@ -98,7 +98,7 @@ export const en: TranslationSchema = {
     removeItem: 'Remove',
     clearCart: 'Clear Cart',
     subtotal: 'Subtotal',
-    tax: 'Tax (18% GST)',
+    tax: 'Tax',
     grandTotal: 'Grand Total',
     placeOrder: 'Place Order',
     orderFor: 'Order for',
