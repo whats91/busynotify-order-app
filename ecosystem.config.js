@@ -88,14 +88,15 @@ module.exports = {
   apps: [
     {
       name: appName,
-      script: 'server.js',
-      cwd: path.join(__dirname, '.next/standalone'),
+      script: path.join('.next', 'standalone', 'server.js'),
+      cwd: __dirname,
       
       // Environment variables from .env file
       env: {
         ...envVars,
         NODE_ENV: nodeEnv,
         PORT: appPort,
+        PROJECT_ROOT: __dirname,
       },
       
       // Production-specific overrides
@@ -109,12 +110,6 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
-      
-      // Logging configuration
-      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-      error_file: path.join(__dirname, 'logs/error.log'),
-      out_file: path.join(__dirname, 'logs/out.log'),
-      merge_logs: true,
       
       // Graceful shutdown
       kill_timeout: 5000,

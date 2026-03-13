@@ -65,6 +65,8 @@ const CONFIG = {
   delayMs: Number(process.env.DEPLOY_DELAY_MS || 3000),
   pm2RestartCmd:
     process.env.DEPLOY_PM2_CMD || "pm2 startOrRestart ecosystem.config.js --env production",
+  pm2StopCmd:
+    process.env.DEPLOY_PM2_STOP_CMD || "pm2 stop ecosystem.config.js --env production",
   lockFile: process.env.DEPLOY_LOCK_FILE || path.join(PROJECT_ROOT, ".deploy.lock"),
   webhookLogPath:
     process.env.DEPLOY_WEBHOOK_LOG_PATH || path.join(PROJECT_ROOT, "logs", "deploy-webhook.log"),
@@ -343,6 +345,119 @@ function syncDirectory(srcDir, destDir, relPath = "") {
   }
 }
 
+const legacyPersistentPaths = [
+  {
+    label: "SQLite data",
+    sourceDir: path.join(CONFIG.projectPath, ".next", "standalone", "data"),
+    targetDir: path.join(CONFIG.projectPath, "data"),
+  },
+  {
+    label: "theme assets",
+    sourceDir: path.join(CONFIG.projectPath, ".next", "standalone", "public", "theme"),
+    targetDir: path.join(CONFIG.projectPath, "public", "theme"),
+  },
+];
+
+function hasLegacyPersistentStorage() {
+  return legacyPersistentPaths.some(({ sourceDir }) => fs.existsSync(sourceDir));
+}
+
+function shouldCopyPersistentFile(sourcePath, targetPath) {
+  if (!fs.existsSync(targetPath)) {
+    return true;
+  }
+
+  const sourceStats = fs.statSync(sourcePath);
+  const targetStats = fs.statSync(targetPath);
+
+  return sourceStats.size !== targetStats.size || sourceStats.mtimeMs > targetStats.mtimeMs;
+}
+
+function copyPersistentDirectory(sourceDir, targetDir) {
+  let copiedFiles = 0;
+
+  if (!fs.existsSync(sourceDir)) {
+    return copiedFiles;
+  }
+
+  ensureDir(targetDir);
+
+  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      copiedFiles += copyPersistentDirectory(sourcePath, targetPath);
+      continue;
+    }
+
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    ensureDir(path.dirname(targetPath));
+
+    if (shouldCopyPersistentFile(sourcePath, targetPath)) {
+      fs.copyFileSync(sourcePath, targetPath);
+      copiedFiles += 1;
+      log(`Migrated persistent file: ${path.relative(CONFIG.projectPath, targetPath)}`, "green");
+    }
+  }
+
+  return copiedFiles;
+}
+
+async function stopPm2ForLegacyMigration() {
+  try {
+    await runCommand(CONFIG.pm2StopCmd, [], CONFIG.projectPath);
+    log("Stopped PM2 app before migrating legacy persistent storage", "yellow");
+  } catch (error) {
+    log(`PM2 stop skipped: ${error.message}`, "yellow");
+  }
+}
+
+function migrateLegacyPersistentStorage() {
+  let copiedFiles = 0;
+
+  for (const { label, sourceDir, targetDir } of legacyPersistentPaths) {
+    if (!fs.existsSync(sourceDir)) {
+      log(`No legacy ${label} found at ${path.relative(CONFIG.projectPath, sourceDir)}`, "cyan");
+      continue;
+    }
+
+    log(`Migrating legacy ${label} from ${path.relative(CONFIG.projectPath, sourceDir)}`, "yellow");
+    copiedFiles += copyPersistentDirectory(sourceDir, targetDir);
+  }
+
+  return copiedFiles;
+}
+
+function removeSensitiveFilesFromBuildOutput() {
+  const standalonePath = path.join(CONFIG.projectPath, ".next", "standalone");
+
+  if (!fs.existsSync(standalonePath)) {
+    return 0;
+  }
+
+  const removedPaths = [];
+
+  for (const entry of fs.readdirSync(standalonePath)) {
+    if (!entry.startsWith(".env")) {
+      continue;
+    }
+
+    const targetPath = path.join(standalonePath, entry);
+    fs.rmSync(targetPath, { recursive: true, force: true });
+    removedPaths.push(path.relative(CONFIG.projectPath, targetPath));
+  }
+
+  for (const removedPath of removedPaths) {
+    log(`Removed non-build artifact from standalone output: ${removedPath}`, "yellow");
+  }
+
+  return removedPaths.length;
+}
+
 function clearCacheFolders() {
   log("Clearing all cache folders...", "yellow");
   
@@ -559,6 +674,20 @@ async function deploy() {
     log(`Waiting ${CONFIG.delayMs / 1000}s...`, "cyan");
     await sleep(CONFIG.delayMs);
 
+    if (hasLegacyPersistentStorage()) {
+      logSection("STEP 2.5: Rescue legacy persistent storage");
+      log(
+        "Detected runtime data under .next/standalone. Moving it into project-level persistent folders before cache cleanup.",
+        "yellow"
+      );
+      await stopPm2ForLegacyMigration();
+      const migratedFiles = migrateLegacyPersistentStorage();
+      log(`Migrated ${migratedFiles} persistent file(s)`, migratedFiles > 0 ? "green" : "cyan");
+
+      log(`Waiting ${CONFIG.delayMs / 1000}s...`, "cyan");
+      await sleep(CONFIG.delayMs);
+    }
+
     // STEP 3: Clear ALL caches
     logSection("STEP 3: Clear all caches");
     clearCacheFolders();
@@ -586,6 +715,10 @@ async function deploy() {
     await runCommand("npm", ["run", "build"], CONFIG.projectPath);
     const buildSecs = ((Date.now() - buildStart) / 1000).toFixed(2);
     log(`Build completed in ${buildSecs}s`, "green");
+    const removedBuildArtifacts = removeSensitiveFilesFromBuildOutput();
+    if (removedBuildArtifacts > 0) {
+      log(`Removed ${removedBuildArtifacts} sensitive build artifact(s) from .next/standalone`, "green");
+    }
 
     // STEP 6: Restart PM2
     logSection("STEP 6: pm2 restart");

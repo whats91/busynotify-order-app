@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev.js",
-    "build": "prisma generate && next build --webpack && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
-    "start": "NODE_ENV=production node .next/standalone/server.js",
+    "build": "prisma generate && next build --webpack && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && find .next/standalone -maxdepth 1 -name '.env*' -delete",
+    "start": "NODE_ENV=production node scripts/start-with-env.js",
     "start:pm2": "pm2 start ecosystem.config.js",
     "stop:pm2": "pm2 stop ecosystem.config.js",
     "restart:pm2": "pm2 restart ecosystem.config.js",

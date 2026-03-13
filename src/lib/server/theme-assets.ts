@@ -7,9 +7,10 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { resolveProjectPath } from '@/lib/project-paths';
 import type { ThemeAssetInfo, ThemeSettingsPayload } from '@/shared/types';
 
-const THEME_DIR = path.join(process.cwd(), 'public', 'theme');
+const THEME_DIR = resolveProjectPath('public', 'theme');
 const assetKinds = ['logo', 'icon'] as const;
 const assetExtensions = ['png', 'jpg', 'jpeg', 'svg'] as const;
 const maxAssetSizeBytes = 5 * 1024 * 1024;

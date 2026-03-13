@@ -8,8 +8,9 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import { projectRoot, resolveProjectPath } from '@/lib/project-paths';
 
-const FALLBACK_DB_PATH = path.join(process.cwd(), 'data', 'busy-notify.sqlite');
+const FALLBACK_DB_PATH = resolveProjectPath('data', 'busy-notify.sqlite');
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -23,7 +24,7 @@ function normalizeDatabaseUrl(databaseUrl?: string): string {
     const resolvedPath = filePath
       ? path.isAbsolute(filePath)
         ? filePath
-        : path.resolve(process.cwd(), filePath)
+        : path.resolve(projectRoot, filePath)
       : FALLBACK_DB_PATH;
 
     mkdirSync(path.dirname(resolvedPath), { recursive: true });
@@ -36,7 +37,7 @@ function normalizeDatabaseUrl(databaseUrl?: string): string {
   ) {
     const resolvedPath = path.isAbsolute(rawUrl)
       ? rawUrl
-      : path.resolve(process.cwd(), rawUrl);
+      : path.resolve(projectRoot, rawUrl);
 
     mkdirSync(path.dirname(resolvedPath), { recursive: true });
     return `file:${resolvedPath}`;
