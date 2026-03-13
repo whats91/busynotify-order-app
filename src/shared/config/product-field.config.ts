@@ -44,6 +44,13 @@ export const defaultProductFieldConfig: ProductFieldConfig[] = [
     sortOrder: 5,
   },
   {
+    fieldKey: 'unitCode',
+    label: 'Unit Code',
+    description: 'ERP unit code used for unit identification.',
+    isVisible: false,
+    sortOrder: 31,
+  },
+  {
     fieldKey: 'price',
     label: 'Display Price',
     description: 'Resolved selling price used for the primary price display.',

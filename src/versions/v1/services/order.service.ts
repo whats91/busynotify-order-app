@@ -66,6 +66,8 @@ export class OrderService {
       productId: string;
       productName: string;
       productSku: string;
+      productUnit?: string;
+      productUnitCode?: number;
       quantity: number;
       unitPrice: number;
       taxRate: number;
@@ -84,6 +86,8 @@ export class OrderService {
         productId: item.productId,
         productName: item.productName,
         productSku: item.productSku,
+        productUnit: item.productUnit,
+        productUnitCode: item.productUnitCode,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         totalPrice: item.unitPrice * item.quantity,
@@ -104,6 +108,8 @@ export class OrderService {
         params.materialCenterName,
         orderItems.map((orderItem, index) => ({
           ...orderItem,
+          productUnit: params.items[index]?.productUnit,
+          productUnitCode: params.items[index]?.productUnitCode,
           taxRate: params.items[index]?.taxRate ?? 18,
         })),
         params.createdBy,

@@ -336,6 +336,7 @@ export interface ApiProduct {
   product_group_name: string;
   product_group_id: number;
   product_unit: string;
+  product_unit_code: number;
   product_mc_name: string | null;
   product_mc_code: number;
   product_tax_name: string;
@@ -367,6 +368,7 @@ export interface ProductDisplay {
   mrp: number;
   stock: number;
   unit: string;
+  unitCode: number;
   taxRate: number;
   taxName: string;
   groupName: string;
@@ -412,6 +414,7 @@ export interface EcommerceCatalogProduct {
   mrp: number;
   stock: number;
   unit: string;
+  unitCode: number;
   taxRate: number;
   taxName: string;
   hsnCode: string;
@@ -487,6 +490,7 @@ export const PRODUCT_FIELD_KEYS = [
   'productAlias',
   'printName',
   'unit',
+  'unitCode',
   'price',
   'salesPrice',
   'purchasePrice',
@@ -548,6 +552,7 @@ export interface Product {
   price: number;
   currency: string;
   unit: string;
+  unitCode?: number;
   category: string;
   stock: number;
   imageUrl?: string;
@@ -613,6 +618,8 @@ export interface OrderItem {
   productId: string;
   productName: string;
   productSku: string;
+  productUnit?: string;
+  productUnitCode?: number;
   quantity: number;
   unitPrice: number;
   totalPrice: number;

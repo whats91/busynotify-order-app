@@ -125,9 +125,16 @@ export class OrderRepository {
     materialCenterId: string,
     materialCenterName: string,
     items: Array<
-      Pick<OrderItem, 'productId' | 'productName' | 'productSku' | 'quantity' | 'unitPrice'> & {
-        taxRate: number;
-      }
+      Pick<
+        OrderItem,
+        | 'productId'
+        | 'productName'
+        | 'productSku'
+        | 'productUnit'
+        | 'productUnitCode'
+        | 'quantity'
+        | 'unitPrice'
+      > & { taxRate: number }
     >,
     createdBy: string,
     createdByRole: 'customer' | 'salesman' | 'admin',

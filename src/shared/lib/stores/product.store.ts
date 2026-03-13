@@ -75,6 +75,7 @@ export function transformProduct(apiProduct: ApiProduct): ProductDisplay {
     mrp: pricing.mrp,
     stock: apiProduct.product_stock,
     unit: apiProduct.product_unit,
+    unitCode: apiProduct.product_unit_code,
     taxRate: apiProduct.product_tax_rate,
     taxName: apiProduct.product_tax_name,
     groupName: apiProduct.product_group_name,

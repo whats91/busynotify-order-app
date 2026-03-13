@@ -89,6 +89,7 @@ const headingFieldKeys: ProductFieldKey[] = ['name', 'printName', 'productAlias'
 const metaFieldKeys: ProductFieldKey[] = [
   'productId',
   'unit',
+  'unitCode',
   'hsnCode',
   'groupName',
   'groupId',
@@ -172,6 +173,8 @@ function getProductFieldDisplayValue(
       return raw?.product_print_name?.trim() || null;
     case 'unit':
       return product.unit || null;
+    case 'unitCode':
+      return formatNumericValue(product.unitCode);
     case 'price':
       return formatCurrencyValue(product.price);
     case 'salesPrice':
@@ -787,6 +790,7 @@ function OrderPageInner() {
     price: product.price,
     currency: 'INR',
     unit: product.unit,
+    unitCode: product.unitCode,
     category: product.groupName,
     stock: product.stock,
     isActive: true,
@@ -936,6 +940,8 @@ function OrderPageInner() {
           productId: item.product.id,
           productName: item.product.name,
           productSku: item.product.sku,
+          productUnit: item.product.unit,
+          productUnitCode: item.product.unitCode,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           taxRate: item.taxRate,

@@ -44,6 +44,8 @@ interface OrderItemRow {
   product_id: string;
   product_name: string;
   product_sku: string;
+  product_unit: string | null;
+  product_unit_code: number | bigint | null;
   quantity: number | bigint;
   unit_price: number;
   tax_rate: number;
@@ -70,6 +72,8 @@ interface CreateOrderParams {
     productId: string;
     productName: string;
     productSku: string;
+    productUnit?: string;
+    productUnitCode?: number;
     quantity: number;
     unitPrice: number;
     taxRate: number;
@@ -104,6 +108,8 @@ function mapOrderItems(rows: OrderItemRow[]): OrderItem[] {
     productId: row.product_id,
     productName: row.product_name,
     productSku: row.product_sku,
+    productUnit: row.product_unit || undefined,
+    productUnitCode: row.product_unit_code == null ? undefined : toNumber(row.product_unit_code),
     quantity: toNumber(row.quantity),
     unitPrice: row.unit_price,
     totalPrice: row.line_total,
@@ -196,6 +202,8 @@ async function initializeSchema() {
           product_id TEXT NOT NULL,
           product_name TEXT NOT NULL,
           product_sku TEXT NOT NULL,
+          product_unit TEXT,
+          product_unit_code INTEGER,
           quantity INTEGER NOT NULL,
           unit_price REAL NOT NULL,
           tax_rate REAL NOT NULL DEFAULT 18,
@@ -234,6 +242,8 @@ async function initializeSchema() {
       await ensureColumnExists('orders', 'material_center_id', 'TEXT');
       await ensureColumnExists('orders', 'material_center_name', 'TEXT');
       await ensureColumnExists('order_items', 'tax_amount', 'REAL NOT NULL DEFAULT 0');
+      await ensureColumnExists('order_items', 'product_unit', 'TEXT');
+      await ensureColumnExists('order_items', 'product_unit_code', 'INTEGER');
       await db.$executeRawUnsafe(
         `UPDATE order_items
          SET tax_amount = ROUND(line_total * (tax_rate / 100.0), 6)
@@ -258,7 +268,8 @@ async function loadOrderItems(
 
   const placeholders = orderIds.map(() => '?').join(', ');
   const rows = await executor.$queryRawUnsafe<OrderItemRow[]>(
-    `SELECT id, order_id, product_id, product_name, product_sku, quantity, unit_price, tax_rate,
+    `SELECT id, order_id, product_id, product_name, product_sku, product_unit, product_unit_code,
+            quantity, unit_price, tax_rate,
             COALESCE(tax_amount, ROUND(line_total * (tax_rate / 100.0), 6)) AS tax_amount,
             line_total, cart_value
      FROM order_items
@@ -452,17 +463,21 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
           product_id,
           product_name,
           product_sku,
+          product_unit,
+          product_unit_code,
           quantity,
           unit_price,
           tax_rate,
           tax_amount,
           line_total,
           cart_value
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         createdOrderId,
         item.productId,
         item.productName,
         item.productSku,
+        item.productUnit?.trim() || null,
+        item.productUnitCode ?? null,
         item.quantity,
         item.unitPrice,
         item.taxRate,
