@@ -60,6 +60,8 @@ export class OrderService {
     companyState: string;
     saleTypeId: string;
     saleTypeName: string;
+    voucherSeriesId: string;
+    voucherSeriesName: string;
     materialCenterId: string;
     materialCenterName: string;
     items: Array<{
@@ -104,6 +106,8 @@ export class OrderService {
         params.companyState,
         params.saleTypeId,
         params.saleTypeName,
+        params.voucherSeriesId,
+        params.voucherSeriesName,
         params.materialCenterId,
         params.materialCenterName,
         orderItems.map((orderItem, index) => ({

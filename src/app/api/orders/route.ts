@@ -30,6 +30,8 @@ interface CreateOrderBody {
   companyState?: string;
   saleTypeId?: string;
   saleTypeName?: string;
+  voucherSeriesId?: string;
+  voucherSeriesName?: string;
   materialCenterId?: string;
   materialCenterName?: string;
   createdBy?: string;
@@ -151,6 +153,8 @@ export async function POST(request: NextRequest) {
       !body.companyState ||
       !body.saleTypeId ||
       !body.saleTypeName ||
+      !body.voucherSeriesId ||
+      !body.voucherSeriesName ||
       !body.materialCenterId ||
       !body.materialCenterName ||
       !Array.isArray(body.items) ||
@@ -159,7 +163,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Customer, sales type, material center, creator, and at least one item are required.',
+          error:
+            'Customer, sales type, voucher series, material center, creator, and at least one item are required.',
         },
         { status: 400 }
       );
@@ -205,6 +210,8 @@ export async function POST(request: NextRequest) {
       companyState: body.companyState,
       saleTypeId: body.saleTypeId,
       saleTypeName: body.saleTypeName,
+      voucherSeriesId: body.voucherSeriesId,
+      voucherSeriesName: body.voucherSeriesName,
       materialCenterId: body.materialCenterId,
       materialCenterName: body.materialCenterName,
       createdBy: effectiveCreatedBy,

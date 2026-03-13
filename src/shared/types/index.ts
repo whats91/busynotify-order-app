@@ -636,6 +636,8 @@ export interface Order {
   companyState?: string;
   saleTypeId?: string;
   saleTypeName?: string;
+  voucherSeriesId?: string;
+  voucherSeriesName?: string;
   materialCenterId?: string;
   materialCenterName?: string;
   items: OrderItem[];

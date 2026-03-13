@@ -17,7 +17,7 @@ export class VoucherSeriesConfigRepository {
       financialYear,
     });
     const response = await fetch(
-      `/api/internal/admin/voucher-series-configuration?${searchParams.toString()}`,
+      `/api/internal/voucher-series-configuration?${searchParams.toString()}`,
       {
         method: 'GET',
         credentials: 'same-origin',

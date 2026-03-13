@@ -74,6 +74,7 @@ import {
   productConfigService,
   materialCenterConfigService,
   salesTypeConfigService,
+  voucherSeriesConfigService,
 } from '@/versions/v1/services';
 import type {
   Customer,
@@ -83,6 +84,7 @@ import type {
   ProductFieldKey,
   ProductStockDisplaySettings,
   SalesTypeConfig,
+  VoucherSeriesConfig,
 } from '@/shared/types';
 
 const headingFieldKeys: ProductFieldKey[] = ['name', 'printName', 'productAlias'];
@@ -323,6 +325,9 @@ function OrderPageInner() {
   const [salesTypeConfig, setSalesTypeConfig] = useState<SalesTypeConfig | null>(null);
   const [salesTypeConfigLoading, setSalesTypeConfigLoading] = useState(false);
   const [salesTypeConfigError, setSalesTypeConfigError] = useState<string | null>(null);
+  const [voucherSeriesConfig, setVoucherSeriesConfig] = useState<VoucherSeriesConfig | null>(null);
+  const [voucherSeriesConfigLoading, setVoucherSeriesConfigLoading] = useState(false);
+  const [voucherSeriesConfigError, setVoucherSeriesConfigError] = useState<string | null>(null);
   const [materialCenterConfig, setMaterialCenterConfig] = useState<MaterialCenterConfig | null>(
     null
   );
@@ -664,6 +669,52 @@ function OrderPageInner() {
 
   useEffect(() => {
     if (!hasHydrated || !isAuthenticated || !selectedCompany) {
+      setVoucherSeriesConfig(null);
+      setVoucherSeriesConfigError(null);
+      setVoucherSeriesConfigLoading(false);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadVoucherSeriesConfig = async () => {
+      setVoucherSeriesConfigLoading(true);
+      setVoucherSeriesConfigError(null);
+
+      try {
+        const config = await voucherSeriesConfigService.getVoucherSeriesConfig(
+          selectedCompany.companyId,
+          selectedCompany.financialYear
+        );
+
+        if (isActive) {
+          setVoucherSeriesConfig(config);
+        }
+      } catch (error) {
+        if (isActive) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Failed to load voucher series configuration.';
+          setVoucherSeriesConfig(null);
+          setVoucherSeriesConfigError(message);
+        }
+      } finally {
+        if (isActive) {
+          setVoucherSeriesConfigLoading(false);
+        }
+      }
+    };
+
+    void loadVoucherSeriesConfig();
+
+    return () => {
+      isActive = false;
+    };
+  }, [hasHydrated, isAuthenticated, selectedCompany]);
+
+  useEffect(() => {
+    if (!hasHydrated || !isAuthenticated || !selectedCompany) {
       setMaterialCenterConfig(null);
       setMaterialCenterConfigError(null);
       setMaterialCenterConfigLoading(false);
@@ -823,7 +874,12 @@ function OrderPageInner() {
       return;
     }
 
-    if (salesTypeConfigLoading || materialCenterConfigLoading || currentCustomerLoading) {
+    if (
+      salesTypeConfigLoading ||
+      voucherSeriesConfigLoading ||
+      materialCenterConfigLoading ||
+      currentCustomerLoading
+    ) {
       toast({
         variant: 'destructive',
         title: 'Please wait',
@@ -846,6 +902,33 @@ function OrderPageInner() {
         variant: 'destructive',
         title: 'Missing sales type configuration',
         description: 'Configure same-state and interstate sales types for this company first.',
+      });
+      return;
+    }
+
+    if (voucherSeriesConfigError) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing voucher series configuration',
+        description: voucherSeriesConfigError,
+      });
+      return;
+    }
+
+    if (!voucherSeriesConfig) {
+      toast({
+        variant: 'destructive',
+        title: 'Missing voucher series configuration',
+        description: 'Configure a default voucher series for this company before placing orders.',
+      });
+      return;
+    }
+
+    if (!voucherSeriesConfig.voucherSeriesId || !voucherSeriesConfig.voucherSeriesName) {
+      toast({
+        variant: 'destructive',
+        title: 'Voucher series required',
+        description: 'Select and save a default voucher series in admin configuration before placing orders.',
       });
       return;
     }
@@ -934,6 +1017,8 @@ function OrderPageInner() {
         companyState: salesTypeConfig.companyState.trim(),
         saleTypeId: applicableSaleTypeId,
         saleTypeName: applicableSaleTypeName,
+        voucherSeriesId: voucherSeriesConfig.voucherSeriesId.trim(),
+        voucherSeriesName: voucherSeriesConfig.voucherSeriesName.trim(),
         materialCenterId: activeMaterialCenterId,
         materialCenterName: activeMaterialCenterName,
         items: items.map(item => ({

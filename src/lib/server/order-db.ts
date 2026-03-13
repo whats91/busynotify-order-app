@@ -23,6 +23,8 @@ interface OrderRow {
   company_state: string | null;
   sale_type_id: string | null;
   sale_type_name: string | null;
+  voucher_series_id: string | null;
+  voucher_series_name: string | null;
   material_center_id: string | null;
   material_center_name: string | null;
   salesman_id: string | null;
@@ -63,6 +65,8 @@ interface CreateOrderParams {
   companyState?: string;
   saleTypeId?: string;
   saleTypeName?: string;
+  voucherSeriesId?: string;
+  voucherSeriesName?: string;
   materialCenterId?: string;
   materialCenterName?: string;
   createdBy: string;
@@ -128,6 +132,8 @@ function mapOrder(orderRow: OrderRow, itemRows: OrderItemRow[]): Order {
     companyState: orderRow.company_state || undefined,
     saleTypeId: orderRow.sale_type_id || undefined,
     saleTypeName: orderRow.sale_type_name || undefined,
+    voucherSeriesId: orderRow.voucher_series_id || undefined,
+    voucherSeriesName: orderRow.voucher_series_name || undefined,
     materialCenterId: orderRow.material_center_id || undefined,
     materialCenterName: orderRow.material_center_name || undefined,
     items: mapOrderItems(itemRows),
@@ -180,6 +186,8 @@ async function initializeSchema() {
           company_state TEXT,
           sale_type_id TEXT,
           sale_type_name TEXT,
+          voucher_series_id TEXT,
+          voucher_series_name TEXT,
           material_center_id TEXT,
           material_center_name TEXT,
           salesman_id TEXT,
@@ -239,6 +247,8 @@ async function initializeSchema() {
       await ensureColumnExists('orders', 'company_state', 'TEXT');
       await ensureColumnExists('orders', 'sale_type_id', 'TEXT');
       await ensureColumnExists('orders', 'sale_type_name', 'TEXT');
+      await ensureColumnExists('orders', 'voucher_series_id', 'TEXT');
+      await ensureColumnExists('orders', 'voucher_series_name', 'TEXT');
       await ensureColumnExists('orders', 'material_center_id', 'TEXT');
       await ensureColumnExists('orders', 'material_center_name', 'TEXT');
       await ensureColumnExists('order_items', 'tax_amount', 'REAL NOT NULL DEFAULT 0');
@@ -324,7 +334,7 @@ export async function listStoredOrders(filters: OrderQueryOptions = {}): Promise
 
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
   const orderRows = await db.$queryRawUnsafe<OrderRow[]>(
-    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_state, company_state, sale_type_id, sale_type_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
+    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_state, company_state, sale_type_id, sale_type_name, voucher_series_id, voucher_series_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
      FROM orders
      ${whereSql}
      ORDER BY datetime(created_at) DESC, id DESC`,
@@ -361,7 +371,7 @@ export async function getStoredOrderById(
       : '';
 
   const orderRows = await db.$queryRawUnsafe<OrderRow[]>(
-    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_state, company_state, sale_type_id, sale_type_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
+    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_state, company_state, sale_type_id, sale_type_name, voucher_series_id, voucher_series_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
      FROM orders
      WHERE id = ?${companyFilterSql}`,
     ...params
@@ -409,6 +419,8 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         company_state,
         sale_type_id,
         sale_type_name,
+        voucher_series_id,
+        voucher_series_name,
         material_center_id,
         material_center_name,
         salesman_id,
@@ -422,7 +434,7 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         created_by_role,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       orderNumber,
       params.companyId ?? null,
       params.financialYear ?? null,
@@ -433,6 +445,8 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
       params.companyState?.trim() || null,
       params.saleTypeId?.trim() || null,
       params.saleTypeName?.trim() || null,
+      params.voucherSeriesId?.trim() || null,
+      params.voucherSeriesName?.trim() || null,
       params.materialCenterId?.trim() || null,
       params.materialCenterName?.trim() || null,
       salesmanId,

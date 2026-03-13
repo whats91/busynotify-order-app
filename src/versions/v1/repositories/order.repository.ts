@@ -122,6 +122,8 @@ export class OrderRepository {
     companyState: string,
     saleTypeId: string,
     saleTypeName: string,
+    voucherSeriesId: string,
+    voucherSeriesName: string,
     materialCenterId: string,
     materialCenterName: string,
     items: Array<
@@ -155,6 +157,8 @@ export class OrderRepository {
         companyState,
         saleTypeId,
         saleTypeName,
+        voucherSeriesId,
+        voucherSeriesName,
         materialCenterId,
         materialCenterName,
         items,
