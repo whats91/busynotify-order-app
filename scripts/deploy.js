@@ -352,12 +352,14 @@ const legacyPersistentPaths = [
     sourceDir: path.join(CONFIG.projectPath, ".next", "standalone", "data"),
     targetDir: path.join(CONFIG.projectPath, "data"),
     allowedSuffixes: CONFIG.databaseFileSuffixes,
+    compareMode: "mtime-or-content",
   },
   {
     label: "theme assets",
     sourceDir: path.join(CONFIG.projectPath, ".next", "standalone", "public", "theme"),
     targetDir: path.join(CONFIG.projectPath, "public", "theme"),
     allowedSuffixes: CONFIG.themeFileSuffixes,
+    compareMode: "content-only",
   },
 ];
 
@@ -365,7 +367,32 @@ function matchesAllowedSuffix(fileName, allowedSuffixes) {
   return allowedSuffixes.some((suffix) => fileName.endsWith(suffix));
 }
 
-function hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes) {
+function filesHaveDifferentContent(sourcePath, targetPath) {
+  const sourceBuffer = fs.readFileSync(sourcePath);
+  const targetBuffer = fs.readFileSync(targetPath);
+  return !sourceBuffer.equals(targetBuffer);
+}
+
+function shouldCopyPersistentFile(sourcePath, targetPath, compareMode = "mtime-or-content") {
+  if (!fs.existsSync(targetPath)) {
+    return true;
+  }
+
+  const sourceStats = fs.statSync(sourcePath);
+  const targetStats = fs.statSync(targetPath);
+
+  if (sourceStats.size !== targetStats.size) {
+    return true;
+  }
+
+  if (compareMode === "content-only") {
+    return filesHaveDifferentContent(sourcePath, targetPath);
+  }
+
+  return sourceStats.mtimeMs > targetStats.mtimeMs || filesHaveDifferentContent(sourcePath, targetPath);
+}
+
+function hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes, compareMode) {
   if (!fs.existsSync(sourceDir)) {
     return false;
   }
@@ -375,7 +402,7 @@ function hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes) {
     const targetPath = path.join(targetDir, entry.name);
 
     if (entry.isDirectory()) {
-      if (hasPendingPersistentCopies(sourcePath, targetPath, allowedSuffixes)) {
+      if (hasPendingPersistentCopies(sourcePath, targetPath, allowedSuffixes, compareMode)) {
         return true;
       }
       continue;
@@ -385,7 +412,7 @@ function hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes) {
       continue;
     }
 
-    if (shouldCopyPersistentFile(sourcePath, targetPath)) {
+    if (shouldCopyPersistentFile(sourcePath, targetPath, compareMode)) {
       return true;
     }
   }
@@ -394,23 +421,12 @@ function hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes) {
 }
 
 function hasLegacyPersistentStorage() {
-  return legacyPersistentPaths.some(({ sourceDir, targetDir, allowedSuffixes }) =>
-    hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes)
+  return legacyPersistentPaths.some(({ sourceDir, targetDir, allowedSuffixes, compareMode }) =>
+    hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes, compareMode)
   );
 }
 
-function shouldCopyPersistentFile(sourcePath, targetPath) {
-  if (!fs.existsSync(targetPath)) {
-    return true;
-  }
-
-  const sourceStats = fs.statSync(sourcePath);
-  const targetStats = fs.statSync(targetPath);
-
-  return sourceStats.size !== targetStats.size || sourceStats.mtimeMs > targetStats.mtimeMs;
-}
-
-function copyPersistentDirectory(sourceDir, targetDir) {
+function copyPersistentDirectory(sourceDir, targetDir, compareMode) {
   let copiedFiles = 0;
 
   if (!fs.existsSync(sourceDir)) {
@@ -424,7 +440,7 @@ function copyPersistentDirectory(sourceDir, targetDir) {
     const targetPath = path.join(targetDir, entry.name);
 
     if (entry.isDirectory()) {
-      copiedFiles += copyPersistentDirectory(sourcePath, targetPath);
+      copiedFiles += copyPersistentDirectory(sourcePath, targetPath, compareMode);
       continue;
     }
 
@@ -434,7 +450,7 @@ function copyPersistentDirectory(sourceDir, targetDir) {
 
     ensureDir(path.dirname(targetPath));
 
-    if (shouldCopyPersistentFile(sourcePath, targetPath)) {
+    if (shouldCopyPersistentFile(sourcePath, targetPath, compareMode)) {
       fs.copyFileSync(sourcePath, targetPath);
       copiedFiles += 1;
       log(`Migrated persistent file: ${path.relative(CONFIG.projectPath, targetPath)}`, "green");
@@ -444,28 +460,17 @@ function copyPersistentDirectory(sourceDir, targetDir) {
   return copiedFiles;
 }
 
-async function stopPm2ForLegacyMigration() {
-  try {
-    await runCommand(CONFIG.pm2StopCmd, [], CONFIG.projectPath);
-    log("Stopped PM2 app before migrating legacy persistent storage", "yellow");
-    return true;
-  } catch (error) {
-    log(`PM2 stop skipped: ${error.message}`, "yellow");
-    return false;
-  }
-}
-
 function migrateLegacyPersistentStorage() {
   let copiedFiles = 0;
 
-  for (const { label, sourceDir, targetDir, allowedSuffixes } of legacyPersistentPaths) {
-    if (!hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes)) {
+  for (const { label, sourceDir, targetDir, allowedSuffixes, compareMode } of legacyPersistentPaths) {
+    if (!hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes, compareMode)) {
       log(`No legacy ${label} found at ${path.relative(CONFIG.projectPath, sourceDir)}`, "cyan");
       continue;
     }
 
     log(`Migrating legacy ${label} from ${path.relative(CONFIG.projectPath, sourceDir)}`, "yellow");
-    copiedFiles += copyPersistentDirectory(sourceDir, targetDir);
+    copiedFiles += copyPersistentDirectory(sourceDir, targetDir, compareMode);
   }
 
   return copiedFiles;
@@ -649,7 +654,6 @@ ${data.error.substring(0, 500)}${data.error.length > 500 ? "..." : ""}
 
 async function deploy() {
   const start = Date.now();
-  let pm2StoppedForMigration = false;
   let pm2RestartAttempted = false;
   
   // Try to acquire deployment lock
@@ -718,10 +722,9 @@ async function deploy() {
     if (hasLegacyPersistentStorage()) {
       logSection("STEP 2.5: Rescue legacy persistent storage");
       log(
-        "Detected runtime data under .next/standalone. Moving it into project-level persistent folders before cache cleanup.",
+        "Detected legacy persistent files under .next/standalone. Moving them into project-level persistent folders before cache cleanup.",
         "yellow"
       );
-      pm2StoppedForMigration = await stopPm2ForLegacyMigration();
       const migratedFiles = migrateLegacyPersistentStorage();
       log(`Migrated ${migratedFiles} persistent file(s)`, migratedFiles > 0 ? "green" : "cyan");
 
@@ -788,17 +791,6 @@ async function deploy() {
       log(`Stack: ${err.stack}`, "red");
     }
     log(`Total time: ${totalSecs}s`, "red");
-
-    if (pm2StoppedForMigration && !pm2RestartAttempted) {
-      logSection("RECOVERY RESTART");
-      try {
-        pm2RestartAttempted = true;
-        await runCommand(CONFIG.pm2RestartCmd, [], CONFIG.projectPath);
-        log("PM2 recovery restart completed after deployment failure", "yellow");
-      } catch (restartError) {
-        log(`PM2 recovery restart failed: ${restartError.message}`, "red");
-      }
-    }
     
     // Send failure notification
     log("Sending failure notification...", "cyan");
