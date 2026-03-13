@@ -5,11 +5,15 @@
  * Interlinked With: src/shared/types/index.ts
  * Role: application data/service layer.
  */
-import type { ProductFieldConfig, UpdateProductFieldConfigPayload } from '../../../shared/types';
+import type {
+  ProductConfiguration,
+  ProductStockDisplaySettings,
+  UpdateProductFieldConfigPayload,
+} from '../../../shared/types';
 
 export class ProductConfigRepository {
-  async findAll(): Promise<ProductFieldConfig[]> {
-    const response = await fetch('/api/internal/admin/product-configuration', {
+  async findAll(): Promise<ProductConfiguration> {
+    const response = await fetch('/api/internal/product-configuration', {
       method: 'GET',
       credentials: 'same-origin',
       cache: 'no-store',
@@ -18,33 +22,48 @@ export class ProductConfigRepository {
     const data = (await response.json()) as {
       success?: boolean;
       error?: string;
-      data?: ProductFieldConfig[];
+      data?: ProductConfiguration;
     };
 
-    if (!response.ok || data.success !== true || !Array.isArray(data.data)) {
+    if (
+      !response.ok ||
+      data.success !== true ||
+      !data.data ||
+      !Array.isArray(data.data.fields) ||
+      !data.data.stockSettings
+    ) {
       throw new Error(data.error || 'Failed to load product configuration.');
     }
 
     return data.data;
   }
 
-  async update(config: UpdateProductFieldConfigPayload[]): Promise<ProductFieldConfig[]> {
+  async update(payload: {
+    config: UpdateProductFieldConfigPayload[];
+    stockSettings: ProductStockDisplaySettings;
+  }): Promise<ProductConfiguration> {
     const response = await fetch('/api/internal/admin/product-configuration', {
       method: 'PUT',
       credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ config }),
+      body: JSON.stringify(payload),
     });
 
     const data = (await response.json()) as {
       success?: boolean;
       error?: string;
-      data?: ProductFieldConfig[];
+      data?: ProductConfiguration;
     };
 
-    if (!response.ok || data.success !== true || !Array.isArray(data.data)) {
+    if (
+      !response.ok ||
+      data.success !== true ||
+      !data.data ||
+      !Array.isArray(data.data.fields) ||
+      !data.data.stockSettings
+    ) {
       throw new Error(data.error || 'Failed to update product configuration.');
     }
 

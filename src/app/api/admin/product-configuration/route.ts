@@ -7,7 +7,10 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { listProductFieldConfig, updateProductFieldConfig } from '@/lib/server/product-config-db';
+import {
+  getProductConfiguration,
+  updateProductConfiguration,
+} from '@/lib/server/product-config-db';
 import { PRODUCT_FIELD_KEYS } from '@/shared/types';
 
 export const runtime = 'nodejs';
@@ -21,25 +24,27 @@ const updateProductFieldConfigSchema = z.object({
       })
     )
     .min(1, 'At least one field update is required.'),
+  stockSettings: z.object({
+    showExactStockQuantity: z.boolean(),
+    showOutOfStockProducts: z.boolean(),
+  }),
 });
 
 export async function GET() {
   try {
-    const config = await listProductFieldConfig();
+    const configuration = await getProductConfiguration();
 
     return NextResponse.json({
       success: true,
-      data: config,
+      data: configuration,
     });
   } catch (error) {
-    console.error('Failed to load product field configuration:', error);
+    console.error('Failed to load product configuration:', error);
     return NextResponse.json(
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to load product field configuration.',
+          error instanceof Error ? error.message : 'Failed to load product configuration.',
       },
       { status: 500 }
     );
@@ -60,21 +65,22 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const config = await updateProductFieldConfig(parsed.data.config);
+    const configuration = await updateProductConfiguration(
+      parsed.data.config,
+      parsed.data.stockSettings
+    );
 
     return NextResponse.json({
       success: true,
-      data: config,
+      data: configuration,
     });
   } catch (error) {
-    console.error('Failed to update product field configuration:', error);
+    console.error('Failed to update product configuration:', error);
     return NextResponse.json(
       {
         success: false,
         error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to update product field configuration.',
+          error instanceof Error ? error.message : 'Failed to update product configuration.',
       },
       { status: 500 }
     );

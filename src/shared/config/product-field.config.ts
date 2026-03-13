@@ -5,7 +5,7 @@
  * Interlinked With: src/shared/types/index.ts
  * Role: shared configuration.
  */
-import type { ProductFieldConfig } from '../types';
+import type { ProductFieldConfig, ProductStockDisplaySettings } from '../types';
 
 export const defaultProductFieldConfig: ProductFieldConfig[] = [
   {
@@ -219,3 +219,8 @@ export const defaultProductFieldConfig: ProductFieldConfig[] = [
     sortOrder: 30,
   },
 ];
+
+export const defaultProductStockDisplaySettings: ProductStockDisplaySettings = {
+  showExactStockQuantity: true,
+  showOutOfStockProducts: true,
+};

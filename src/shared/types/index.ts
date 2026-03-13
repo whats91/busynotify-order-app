@@ -529,6 +529,16 @@ export interface UpdateProductFieldConfigPayload {
   isVisible: boolean;
 }
 
+export interface ProductStockDisplaySettings {
+  showExactStockQuantity: boolean;
+  showOutOfStockProducts: boolean;
+}
+
+export interface ProductConfiguration {
+  fields: ProductFieldConfig[];
+  stockSettings: ProductStockDisplaySettings;
+}
+
 // Legacy Product type (for backward compatibility)
 export interface Product {
   id: string;

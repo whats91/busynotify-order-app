@@ -67,7 +67,7 @@ import { AppShell } from '@/shared/components/app-shell';
 import { formatCurrency } from '@/shared/components/format-currency';
 import { useSetFooterContent, useSetHeaderActions } from '@/shared/lib/header-action-context';
 import { FooterBar, MobileCartFooter } from '@/shared/components/footer-bar';
-import { defaultProductFieldConfig } from '@/shared/config';
+import { defaultProductFieldConfig, defaultProductStockDisplaySettings } from '@/shared/config';
 import {
   customerService,
   orderService,
@@ -81,6 +81,7 @@ import type {
   ProductDisplay,
   ProductFieldConfig,
   ProductFieldKey,
+  ProductStockDisplaySettings,
   SalesTypeConfig,
 } from '@/shared/types';
 
@@ -141,6 +142,17 @@ function formatCurrencyValue(value: number | null | undefined): string | null {
 
 function normalizeStateName(value: string | undefined | null): string {
   return value?.trim().toLowerCase() || '';
+}
+
+function getStockDisplayLabel(
+  stock: number,
+  settings: ProductStockDisplaySettings
+): string | null {
+  if (stock > 0) {
+    return settings.showExactStockQuantity ? formatNumericValue(stock) : 'In Stock';
+  }
+
+  return 'Out of Stock';
 }
 
 function getProductFieldDisplayValue(
@@ -303,6 +315,8 @@ function OrderPageInner() {
   const [productFieldConfig, setProductFieldConfig] = useState<ProductFieldConfig[]>(
     defaultProductFieldConfig
   );
+  const [productStockDisplaySettings, setProductStockDisplaySettings] =
+    useState<ProductStockDisplaySettings>(defaultProductStockDisplaySettings);
   const [salesTypeConfig, setSalesTypeConfig] = useState<SalesTypeConfig | null>(null);
   const [salesTypeConfigLoading, setSalesTypeConfigLoading] = useState(false);
   const [salesTypeConfigError, setSalesTypeConfigError] = useState<string | null>(null);
@@ -349,14 +363,16 @@ function OrderPageInner() {
     }
 
     return products.filter(p => {
+      const matchesStock =
+        productStockDisplaySettings.showOutOfStockProducts || Number(p.stock) > 0;
       const matchesSearch = !searchQuery || 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.groupName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.hsnCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.productId.toString().includes(searchQuery);
-      return matchesSearch;
+      return matchesStock && matchesSearch;
     });
-  }, [products, searchQuery, selectedCompany]);
+  }, [products, productStockDisplaySettings.showOutOfStockProducts, searchQuery, selectedCompany]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredProducts.length / pageSize));
@@ -584,11 +600,13 @@ function OrderPageInner() {
 
     const loadProductFieldConfig = async () => {
       try {
-        const config = await productConfigService.getProductFieldConfig();
-        setProductFieldConfig(config);
+        const configuration = await productConfigService.getProductConfiguration();
+        setProductFieldConfig(configuration.fields);
+        setProductStockDisplaySettings(configuration.stockSettings);
       } catch (error) {
         console.error('Failed to load product field configuration:', error);
         setProductFieldConfig(defaultProductFieldConfig);
+        setProductStockDisplaySettings(defaultProductStockDisplaySettings);
       }
     };
 
@@ -1132,7 +1150,13 @@ function OrderPageInner() {
               ) : filteredProducts.length === 0 ? (
                 <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
                   <Search className="h-8 w-8 text-muted-foreground" />
-                  <p className="text-sm font-medium">No products match the current search.</p>
+                  <p className="text-sm font-medium">
+                    {searchQuery
+                      ? 'No products match the current search.'
+                      : productStockDisplaySettings.showOutOfStockProducts
+                        ? 'No products match the current search.'
+                        : 'No in-stock products are available right now.'}
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
@@ -1146,7 +1170,10 @@ function OrderPageInner() {
                         continue;
                       }
 
-                      const value = getProductFieldDisplayValue(product, field.fieldKey);
+                      const value =
+                        field.fieldKey === 'stock'
+                          ? getStockDisplayLabel(product.stock, productStockDisplaySettings)
+                          : getProductFieldDisplayValue(product, field.fieldKey);
 
                       if (value && hasDisplayValue(value)) {
                         visibleValues.set(field.fieldKey, value);
@@ -1352,7 +1379,7 @@ function OrderPageInner() {
                                   variant={product.stock > 0 ? 'default' : 'secondary'}
                                   className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
                                 >
-                                  {product.stock > 0 ? stockValue : 'Out'}
+                                  {stockValue}
                                 </Badge>
                               ) : null}
                             </div>

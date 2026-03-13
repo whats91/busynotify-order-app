@@ -11,20 +11,30 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2, SlidersHorizontal } from 'lucide-react';
 import { AppShell } from '@/shared/components/app-shell';
-import { defaultProductFieldConfig } from '@/shared/config';
+import { defaultProductFieldConfig, defaultProductStockDisplaySettings } from '@/shared/config';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore, useHasHydrated } from '@/shared/lib/stores';
-import type { ProductFieldConfig, ProductFieldKey } from '@/shared/types';
+import type {
+  ProductFieldConfig,
+  ProductFieldKey,
+  ProductStockDisplaySettings,
+} from '@/shared/types';
 import { productConfigService } from '@/versions/v1/services';
 
-function buildConfigSignature(config: ProductFieldConfig[]) {
+function buildConfigSignature(
+  config: ProductFieldConfig[],
+  stockSettings: ProductStockDisplaySettings
+) {
   return JSON.stringify(
-    [...config]
-      .sort((left, right) => left.sortOrder - right.sortOrder)
-      .map((field) => [field.fieldKey, field.isVisible])
+    {
+      fields: [...config]
+        .sort((left, right) => left.sortOrder - right.sortOrder)
+        .map((field) => [field.fieldKey, field.isVisible]),
+      stockSettings,
+    }
   );
 }
 
@@ -35,6 +45,12 @@ export default function AdminProductConfigurationPage() {
 
   const [config, setConfig] = useState<ProductFieldConfig[]>(defaultProductFieldConfig);
   const [savedConfig, setSavedConfig] = useState<ProductFieldConfig[]>(defaultProductFieldConfig);
+  const [stockSettings, setStockSettings] = useState<ProductStockDisplaySettings>(
+    defaultProductStockDisplaySettings
+  );
+  const [savedStockSettings, setSavedStockSettings] = useState<ProductStockDisplaySettings>(
+    defaultProductStockDisplaySettings
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -63,8 +79,10 @@ export default function AdminProductConfigurationPage() {
   );
   const hiddenFields = config.length - visibleFields;
   const isDirty = useMemo(
-    () => buildConfigSignature(config) !== buildConfigSignature(savedConfig),
-    [config, savedConfig]
+    () =>
+      buildConfigSignature(config, stockSettings) !==
+      buildConfigSignature(savedConfig, savedStockSettings),
+    [config, savedConfig, savedStockSettings, stockSettings]
   );
 
   const loadConfig = async () => {
@@ -72,9 +90,11 @@ export default function AdminProductConfigurationPage() {
     setLoadError(null);
 
     try {
-      const records = await productConfigService.getProductFieldConfig();
-      setConfig(records);
-      setSavedConfig(records);
+      const configuration = await productConfigService.getProductConfiguration();
+      setConfig(configuration.fields);
+      setSavedConfig(configuration.fields);
+      setStockSettings(configuration.stockSettings);
+      setSavedStockSettings(configuration.stockSettings);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to load product configuration.';
@@ -92,28 +112,32 @@ export default function AdminProductConfigurationPage() {
 
   const handleResetDefaults = () => {
     setConfig(defaultProductFieldConfig);
+    setStockSettings(defaultProductStockDisplaySettings);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
 
     try {
-      const result = await productConfigService.updateProductFieldConfig(
-        config.map((field) => ({
+      const result = await productConfigService.updateProductConfiguration({
+        config: config.map((field) => ({
           fieldKey: field.fieldKey,
           isVisible: field.isVisible,
-        }))
-      );
+        })),
+        stockSettings,
+      });
 
-      if (!result.success || !result.config) {
+      if (!result.success || !result.configuration) {
         throw new Error(result.error || 'Failed to update product configuration.');
       }
 
-      setConfig(result.config);
-      setSavedConfig(result.config);
+      setConfig(result.configuration.fields);
+      setSavedConfig(result.configuration.fields);
+      setStockSettings(result.configuration.stockSettings);
+      setSavedStockSettings(result.configuration.stockSettings);
       toast({
         title: 'Configuration saved',
-        description: 'Order page product fields will now follow this visibility setup.',
+        description: 'Product field visibility and stock display preferences were updated.',
       });
     } catch (error) {
       toast({
@@ -124,6 +148,16 @@ export default function AdminProductConfigurationPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleStockSettingChange = (
+    key: keyof ProductStockDisplaySettings,
+    value: boolean
+  ) => {
+    setStockSettings((current) => ({
+      ...current,
+      [key]: value,
+    }));
   };
 
   if (!hasHydrated || !isAuthenticated || !user || user.role !== 'admin') {
@@ -259,6 +293,67 @@ export default function AdminProductConfigurationPage() {
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-xl border bg-muted/30 p-2">
+                <SlidersHorizontal className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Stock Display</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Control how stock appears in the order catalog for customers and salesmen.
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium">Show Exact Stock Quantity</p>
+                  <p className="text-sm text-muted-foreground">
+                    Display exact available units instead of generic stock status labels.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 sm:min-w-[12rem] sm:justify-end">
+                  <div className="text-sm text-muted-foreground">
+                    {stockSettings.showExactStockQuantity ? 'Exact quantity' : 'In/Out status'}
+                  </div>
+                  <Switch
+                    checked={stockSettings.showExactStockQuantity}
+                    disabled={isSaving}
+                    onCheckedChange={(checked) =>
+                      handleStockSettingChange('showExactStockQuantity', checked)
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium">Show Out-of-Stock Products</p>
+                  <p className="text-sm text-muted-foreground">
+                    Hide zero-stock products completely when disabled.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-3 sm:min-w-[12rem] sm:justify-end">
+                  <div className="text-sm text-muted-foreground">
+                    {stockSettings.showOutOfStockProducts ? 'Visible' : 'Hidden'}
+                  </div>
+                  <Switch
+                    checked={stockSettings.showOutOfStockProducts}
+                    disabled={isSaving}
+                    onCheckedChange={(checked) =>
+                      handleStockSettingChange('showOutOfStockProducts', checked)
+                    }
+                  />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
