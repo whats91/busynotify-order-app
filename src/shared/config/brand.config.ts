@@ -18,11 +18,11 @@ import type { WhiteLabelConfig, BrandConfig, FeatureFlags } from '../types';
 // =====================================================
 
 export const defaultBrandConfig: BrandConfig = {
-  name: 'Busy Notify',
-  tagline: 'Internal Ordering Portal',
-  logo: '/logo.svg',
-  logoDark: '/logo.svg',
-  favicon: '/favicon.ico',
+  name: process.env.NEXT_PUBLIC_APP_NAME || 'Busy Notify',
+  tagline: process.env.NEXT_PUBLIC_APP_TITLE || 'Internal Ordering Portal',
+  logo: '/theme/logo',
+  logoDark: '/theme/logo',
+  favicon: '/theme/icon',
   primaryColor: '#10B981', // emerald-500
   secondaryColor: '#6366F1', // indigo-500
   accentColor: '#F59E0B', // amber-500

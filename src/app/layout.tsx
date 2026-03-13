@@ -10,14 +10,28 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from '@/shared/components/providers';
 
+const appName =
+  process.env.APP_NAME?.trim() ||
+  process.env.NEXT_PUBLIC_APP_NAME?.trim() ||
+  'Busy Notify';
+const appTitle =
+  process.env.APP_TITLE?.trim() ||
+  process.env.NEXT_PUBLIC_APP_TITLE?.trim() ||
+  `${appName} - Internal Ordering Portal`;
+const appDescription =
+  process.env.APP_DESCRIPTION?.trim() ||
+  'Internal ordering system portal for customers and salesmen. Place orders, track history, and manage your business efficiently.';
+
 export const metadata: Metadata = {
-  title: 'Busy Notify - Internal Ordering Portal',
-  description:
-    'Internal ordering system portal for customers and salesmen. Place orders, track history, and manage your business efficiently.',
+  title: appTitle,
+  applicationName: appName,
+  description: appDescription,
   keywords: ['ordering', 'portal', 'internal', 'business', 'B2B'],
-  authors: [{ name: 'Busy Notify Team' }],
+  authors: [{ name: appName }],
   icons: {
-    icon: '/logo.svg',
+    icon: '/theme/icon',
+    shortcut: '/theme/icon',
+    apple: '/theme/icon',
   },
 };
 
@@ -29,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased bg-background text-foreground">
-        <Providers>
+        <Providers appName={appName} appTitle={appTitle}>
           {children}
         </Providers>
         <Toaster />

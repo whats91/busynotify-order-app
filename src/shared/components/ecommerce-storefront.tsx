@@ -482,8 +482,21 @@ export function EcommerceStorefront({ payload }: EcommerceStorefrontProps) {
       />
 
       <footer className="border-t bg-background/90">
-        <div className="mx-auto max-w-7xl px-4 py-6 text-sm text-muted-foreground sm:px-6 lg:px-8">
-          {payload.settings.footerNote}
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-sm text-muted-foreground sm:px-6 lg:px-8">
+          {payload.pages.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {payload.pages.map((page) => (
+                <Link
+                  key={page.slug}
+                  href={page.href}
+                  className="transition hover:text-foreground"
+                >
+                  {page.title}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+          <div>{payload.settings.footerNote}</div>
         </div>
       </footer>
 

@@ -22,6 +22,7 @@ import {
   BadgePercent,
   ClipboardCheck,
   LayoutDashboard,
+  Palette,
   ShoppingCart,
   ClipboardList,
   ChevronsLeft,
@@ -36,7 +37,9 @@ import {
   Warehouse,
 } from 'lucide-react';
 import { useAuthStore, useCartStore } from '../lib/stores';
+import { useAppConfig } from '../lib/app-config-context';
 import { useTranslation } from '../lib/language-context';
+import { THEME_ASSETS_UPDATED_EVENT } from '../lib/theme-asset-events';
 import { getNavigationForRole } from '../config/navigation.config';
 import { UserMenu } from './user-menu';
 import { CompanySelector } from './company-selector';
@@ -57,6 +60,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Warehouse,
   FileText,
   Store,
+  Palette,
 };
 
 const SIDEBAR_STORAGE_KEY = 'busy-notify-sidebar-collapsed';
@@ -101,9 +105,12 @@ function AppShellContent({
 
     return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true';
   });
+  const [showBrandLogo, setShowBrandLogo] = useState(true);
+  const [themeAssetVersion, setThemeAssetVersion] = useState(() => Date.now());
   const pathname = usePathname();
   const { user } = useAuthStore();
   const { headerActions, footerContent } = useHeaderActions();
+  const { appName } = useAppConfig();
   const t = useTranslation();
   
   const role = user?.role as Role;
@@ -121,9 +128,39 @@ function AppShellContent({
     window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
 
+  useEffect(() => {
+    const handleThemeAssetsUpdated = () => {
+      setShowBrandLogo(true);
+      setThemeAssetVersion(Date.now());
+    };
+
+    window.addEventListener(THEME_ASSETS_UPDATED_EVENT, handleThemeAssetsUpdated);
+
+    return () => {
+      window.removeEventListener(THEME_ASSETS_UPDATED_EVENT, handleThemeAssetsUpdated);
+    };
+  }, []);
+
   const toggleSidebar = () => {
     setIsSidebarCollapsed((current) => !current);
   };
+
+  const renderBrandLogo = (className?: string) =>
+    showBrandLogo ? (
+      <img
+        src={`/theme/logo?v=${themeAssetVersion}`}
+        alt={`${appName} logo`}
+        className={cn('h-6 w-6 rounded-md object-contain', className)}
+        onError={() => setShowBrandLogo(false)}
+      />
+    ) : null;
+
+  const renderBrandIdentity = (logoClassName?: string) =>
+    showBrandLogo ? (
+      renderBrandLogo(logoClassName)
+    ) : (
+      <span className="truncate">{appName}</span>
+    );
   
   const renderNavItems = (
     items: NavigationItem[],
@@ -232,8 +269,7 @@ function AppShellContent({
             <div className="flex h-full flex-col">
               <div className="flex h-14 items-center border-b px-4">
                 <Link href="/" className="flex items-center gap-2 font-semibold">
-                  <Package className="h-6 w-6 text-primary" />
-                  <span>{t.common.appName}</span>
+                  {renderBrandIdentity('h-7 w-auto max-w-[9rem]')}
                 </Link>
               </div>
               <ScrollArea className="flex-1">
@@ -246,8 +282,7 @@ function AppShellContent({
           </SheetContent>
         </Sheet>
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Package className="h-6 w-6 text-primary" />
-          <span>{t.common.appName}</span>
+          {renderBrandIdentity('h-7 w-auto max-w-[9rem]')}
         </Link>
         <div className="ml-auto flex items-center gap-2">
           {/* Dynamic header actions from page context */}
@@ -276,10 +311,11 @@ function AppShellContent({
                   'flex min-w-0 items-center font-semibold',
                   isSidebarCollapsed ? 'justify-center' : 'gap-2'
                 )}
-                title={isSidebarCollapsed ? t.common.appName : undefined}
+                title={isSidebarCollapsed ? appName : undefined}
               >
-                <Package className="h-6 w-6 text-primary" />
-                {!isSidebarCollapsed ? <span className="truncate">{t.common.appName}</span> : null}
+                {isSidebarCollapsed
+                  ? renderBrandIdentity()
+                  : renderBrandIdentity('h-8 w-auto max-w-[10rem]')}
               </Link>
             </div>
             <ScrollArea className="flex-1">

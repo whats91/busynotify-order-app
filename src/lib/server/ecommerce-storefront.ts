@@ -13,9 +13,12 @@ import type {
   ApiProduct,
   Company,
   EcommerceCatalogProduct,
+  EcommerceContentPage,
+  EcommerceContentPageSummary,
   EcommerceStorefrontContext,
   EcommerceStorefrontPayload,
   EcommerceStorefrontSettings,
+  UpdateEcommerceContentPagePayload,
   UpdateEcommerceStorefrontPayload,
 } from '@/shared/types';
 
@@ -49,6 +52,15 @@ interface StorefrontSettingsRow {
   updated_at: string;
 }
 
+interface EcommercePageRow {
+  company_id: number | bigint;
+  financial_year: string;
+  slug: string;
+  title: string;
+  content_markdown: string;
+  updated_at: string;
+}
+
 interface PublicStorefrontOptions {
   page?: number;
   searchQuery?: string;
@@ -60,6 +72,85 @@ declare global {
 }
 
 const STOREFRONT_PAGE_SIZE = 30;
+const DEFAULT_ECOMMERCE_PAGES = [
+  {
+    slug: 'contact-us',
+    title: 'Contact Us',
+    contentMarkdown: `# Contact Us
+
+We are here to help with product questions, order support, and account assistance.
+
+## Contact Details
+
+- **Business Name:** Busy Notify Store
+- **Email:** support@example.com
+- **Phone:** +91 00000 00000
+- **Business Hours:** Monday to Saturday, 10:00 AM to 6:00 PM
+
+## Need Help?
+
+Please share your name, order reference, and a brief summary of your issue when reaching out.`,
+  },
+  {
+    slug: 'terms-and-conditions',
+    title: 'Terms & Conditions',
+    contentMarkdown: `# Terms & Conditions
+
+By using this storefront, you agree to the terms below.
+
+## Orders
+
+- All orders are subject to product availability.
+- Pricing and tax values shown at checkout are subject to final confirmation.
+- We reserve the right to refuse or cancel any order if required by business policy.
+
+## Account Responsibility
+
+You are responsible for maintaining correct account and delivery information.
+
+## Changes
+
+These terms may be updated from time to time without prior notice.`,
+  },
+  {
+    slug: 'refund-policy',
+    title: 'Refund Policy',
+    contentMarkdown: `# Refund Policy
+
+Refund eligibility depends on the product type, delivery status, and issue reported.
+
+## Eligible Cases
+
+- Damaged or defective product received
+- Wrong product delivered
+- Order cancelled before dispatch, where applicable
+
+## Process
+
+To request a refund, contact support with your order details and issue description. Approved refunds will be processed through the original payment or settlement method.`,
+  },
+  {
+    slug: 'privacy-policy',
+    title: 'Privacy Policy',
+    contentMarkdown: `# Privacy Policy
+
+We collect only the information needed to process orders and support your account.
+
+## Information We Use
+
+- Name and contact details
+- Delivery and billing information
+- Order and account activity
+
+## Usage
+
+Your information is used for order fulfilment, support, compliance, and service improvement.
+
+## Data Sharing
+
+We do not sell personal data. Information may be shared only with operational or legal service providers when necessary.`,
+  },
+] as const;
 
 function toText(value: unknown): string {
   if (typeof value === 'string') {
@@ -203,6 +294,26 @@ function mapStorefrontSettingsRow(row: StorefrontSettingsRow): EcommerceStorefro
   };
 }
 
+function mapEcommercePageRow(row: EcommercePageRow): EcommerceContentPage {
+  return {
+    companyId: toNumber(row.company_id),
+    financialYear: row.financial_year,
+    slug: row.slug,
+    title: row.title,
+    contentMarkdown: row.content_markdown,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapEcommercePageSummary(page: EcommerceContentPage): EcommerceContentPageSummary {
+  return {
+    slug: page.slug,
+    title: page.title,
+    href: `/pages/${page.slug}`,
+    updatedAt: page.updatedAt,
+  };
+}
+
 function createContextFromCompany(
   company: Company | null,
   updatedAt?: string
@@ -341,6 +452,21 @@ async function initializeSchema() {
       await ecommerceDb.$executeRawUnsafe(
         `CREATE INDEX IF NOT EXISTS idx_ecommerce_storefront_settings_updated_at
          ON ecommerce_storefront_settings(updated_at DESC)`
+      );
+      await ecommerceDb.$executeRawUnsafe(
+        `CREATE TABLE IF NOT EXISTS pages (
+          company_id INTEGER NOT NULL,
+          financial_year TEXT NOT NULL,
+          slug TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT '',
+          content_markdown TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (company_id, financial_year, slug)
+        )`
+      );
+      await ecommerceDb.$executeRawUnsafe(
+        `CREATE INDEX IF NOT EXISTS idx_pages_company_slug
+         ON pages(company_id, financial_year, slug)`
       );
     })();
   }
@@ -483,6 +609,108 @@ export async function getStoredEcommerceStorefrontSettings(
     : buildDefaultStorefrontSettings(companyId, financialYear, companyName);
 }
 
+async function seedDefaultEcommercePages(companyId: number, financialYear: string) {
+  await initializeSchema();
+
+  for (const page of DEFAULT_ECOMMERCE_PAGES) {
+    await ecommerceDb.$executeRawUnsafe(
+      `INSERT INTO pages (
+        company_id,
+        financial_year,
+        slug,
+        title,
+        content_markdown,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(company_id, financial_year, slug) DO NOTHING`,
+      companyId,
+      financialYear,
+      page.slug,
+      page.title,
+      page.contentMarkdown,
+      new Date().toISOString()
+    );
+  }
+}
+
+export async function getStoredEcommercePages(
+  companyId: number,
+  financialYear: string
+): Promise<EcommerceContentPage[]> {
+  await seedDefaultEcommercePages(companyId, financialYear);
+
+  const rows = await ecommerceDb.$queryRawUnsafe<EcommercePageRow[]>(
+    `SELECT company_id, financial_year, slug, title, content_markdown, updated_at
+     FROM pages
+     WHERE company_id = ? AND financial_year = ?
+     ORDER BY title ASC`,
+    companyId,
+    financialYear
+  );
+
+  return rows.map((row) => mapEcommercePageRow(row));
+}
+
+export async function getStoredEcommercePageBySlug(
+  companyId: number,
+  financialYear: string,
+  slug: string
+): Promise<EcommerceContentPage | null> {
+  await seedDefaultEcommercePages(companyId, financialYear);
+
+  const rows = await ecommerceDb.$queryRawUnsafe<EcommercePageRow[]>(
+    `SELECT company_id, financial_year, slug, title, content_markdown, updated_at
+     FROM pages
+     WHERE company_id = ? AND financial_year = ? AND slug = ?`,
+    companyId,
+    financialYear,
+    slug
+  );
+
+  return rows[0] ? mapEcommercePageRow(rows[0]) : null;
+}
+
+export async function saveEcommerceContentPage(
+  payload: UpdateEcommerceContentPagePayload
+): Promise<EcommerceContentPage> {
+  await seedDefaultEcommercePages(payload.companyId, payload.financialYear);
+
+  const updatedAt = new Date().toISOString();
+
+  await ecommerceDb.$executeRawUnsafe(
+    `INSERT INTO pages (
+      company_id,
+      financial_year,
+      slug,
+      title,
+      content_markdown,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(company_id, financial_year, slug) DO UPDATE SET
+      title = excluded.title,
+      content_markdown = excluded.content_markdown,
+      updated_at = excluded.updated_at`,
+    payload.companyId,
+    payload.financialYear,
+    payload.slug.trim(),
+    payload.title.trim(),
+    payload.contentMarkdown.trim(),
+    updatedAt
+  );
+
+  const savedPage = await getStoredEcommercePageBySlug(
+    payload.companyId,
+    payload.financialYear,
+    payload.slug
+  );
+
+  if (!savedPage) {
+    throw new Error('Failed to save ecommerce page.');
+  }
+
+  return savedPage;
+}
+
 async function buildCatalogProducts(
   companyId: number,
   financialYear: string
@@ -606,6 +834,7 @@ export async function saveEcommerceStorefront(
     selectedContext: createContextFromCompany(selectedCompany),
     settings,
     products: [],
+    pages: [],
     categories: [],
     filters: {
       searchQuery: '',
@@ -642,6 +871,9 @@ export async function getAdminEcommerceStorefront(
         selectedCompany.companyName
       )
     : null;
+  const pages = selectedCompany
+    ? await getStoredEcommercePages(selectedCompany.companyId, selectedCompany.financialYear)
+    : [];
 
   return {
     isEnabled: isEcommerceEnabled(),
@@ -649,6 +881,7 @@ export async function getAdminEcommerceStorefront(
     selectedContext: createContextFromCompany(selectedCompany),
     settings,
     products: [],
+    pages: pages.map((page) => mapEcommercePageSummary(page)),
     categories: [],
     filters: {
       searchQuery: '',
@@ -668,6 +901,7 @@ export async function getPublicEcommerceStorefrontPayload(
       selectedContext: null,
       settings: null,
       products: [],
+      pages: [],
       categories: [],
       filters: {
         searchQuery: '',
@@ -687,6 +921,7 @@ export async function getPublicEcommerceStorefrontPayload(
         selectedContext: null,
         settings: null,
         products: [],
+        pages: [],
         categories: [],
         filters: {
           searchQuery: '',
@@ -697,13 +932,14 @@ export async function getPublicEcommerceStorefrontPayload(
       };
     }
 
-    const [settings, products] = await Promise.all([
+    const [settings, products, pages] = await Promise.all([
       getStoredEcommerceStorefrontSettings(
         activeContext.companyId,
         activeContext.financialYear,
         activeContext.companyName
       ),
       buildCatalogProducts(activeContext.companyId, activeContext.financialYear),
+      getStoredEcommercePages(activeContext.companyId, activeContext.financialYear),
     ]);
 
     const categories = deriveCategories(products);
@@ -733,6 +969,7 @@ export async function getPublicEcommerceStorefrontPayload(
       selectedContext: activeContext,
       settings,
       products: paginatedProducts,
+      pages: pages.map((page) => mapEcommercePageSummary(page)),
       categories,
       filters: {
         searchQuery,
@@ -755,6 +992,7 @@ export async function getPublicEcommerceStorefrontPayload(
       selectedContext: null,
       settings: null,
       products: [],
+      pages: [],
       categories: [],
       filters: {
         searchQuery: '',
@@ -764,4 +1002,46 @@ export async function getPublicEcommerceStorefrontPayload(
       error: error instanceof Error ? error.message : 'Failed to load storefront.',
     };
   }
+}
+
+export async function getPublicEcommerceContentPage(slug: string) {
+  if (!isEcommerceEnabled()) {
+    return {
+      isEnabled: false,
+      activeContext: null,
+      settings: null,
+      page: null,
+      pages: [] as EcommerceContentPageSummary[],
+    };
+  }
+
+  const activeContext = await getStoredEcommerceStorefrontContext();
+
+  if (!activeContext?.companyId || !activeContext.financialYear) {
+    return {
+      isEnabled: true,
+      activeContext: null,
+      settings: null,
+      page: null,
+      pages: [] as EcommerceContentPageSummary[],
+    };
+  }
+
+  const [settings, page, pages] = await Promise.all([
+    getStoredEcommerceStorefrontSettings(
+      activeContext.companyId,
+      activeContext.financialYear,
+      activeContext.companyName
+    ),
+    getStoredEcommercePageBySlug(activeContext.companyId, activeContext.financialYear, slug),
+    getStoredEcommercePages(activeContext.companyId, activeContext.financialYear),
+  ]);
+
+  return {
+    isEnabled: true,
+    activeContext,
+    settings,
+    page,
+    pages: pages.map((item) => mapEcommercePageSummary(item)),
+  };
 }

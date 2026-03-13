@@ -16,6 +16,10 @@
 export const serverEnv = {
   // Application
   appName: process.env.APP_NAME || 'busy-notify',
+  appTitle:
+    process.env.APP_TITLE ||
+    process.env.APP_NAME ||
+    'Busy Notify - Internal Ordering Portal',
   appPort: parseInt(process.env.APP_PORT || '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   
@@ -28,6 +32,10 @@ export const serverEnv = {
 // Client-side environment variables (must be prefixed with NEXT_PUBLIC_)
 export const clientEnv = {
   appName: process.env.NEXT_PUBLIC_APP_NAME || 'busy-notify',
+  appTitle:
+    process.env.NEXT_PUBLIC_APP_TITLE ||
+    process.env.NEXT_PUBLIC_APP_NAME ||
+    'Busy Notify - Internal Ordering Portal',
 };
 
 // Type exports

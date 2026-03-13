@@ -6,7 +6,9 @@
  * Role: application data/service layer.
  */
 import type {
+  EcommerceContentPage,
   EcommerceStorefrontPayload,
+  UpdateEcommerceContentPagePayload,
   UpdateEcommerceStorefrontPayload,
 } from '../../../shared/types';
 import { ecommerceRepository } from '../repositories/ecommerce.repository';
@@ -37,6 +39,32 @@ export class EcommerceService {
           error instanceof Error
             ? error.message
             : 'Failed to save ecommerce storefront configuration.',
+      };
+    }
+  }
+
+  async getPages(companyId: number, financialYear: string): Promise<EcommerceContentPage[]> {
+    return ecommerceRepository.getPages(companyId, financialYear);
+  }
+
+  async savePage(payload: UpdateEcommerceContentPagePayload): Promise<{
+    success: boolean;
+    data?: EcommerceContentPage;
+    error?: string;
+  }> {
+    try {
+      const data = await ecommerceRepository.updatePage(payload);
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Failed to save ecommerce page.',
       };
     }
   }

@@ -49,6 +49,21 @@ export const navigationItems: NavigationItem[] = [
     roles: ['admin'],
   },
   {
+    id: 'theme',
+    labelKey: 'navigation.theme',
+    icon: 'Palette',
+    roles: ['admin'],
+    children: [
+      {
+        id: 'theme-brand-assets',
+        labelKey: 'navigation.themeBrandAssets',
+        href: '/admin/theme',
+        icon: 'Palette',
+        roles: ['admin'],
+      },
+    ],
+  },
+  {
     id: 'configuration',
     labelKey: 'navigation.configuration',
     icon: 'Settings2',
@@ -95,6 +110,13 @@ export const navigationItems: NavigationItem[] = [
         labelKey: 'navigation.ecommerceStorefrontSettings',
         href: '/admin/ecommerce',
         icon: 'Settings2',
+        roles: ['admin'],
+      },
+      {
+        id: 'ecommerce-pages',
+        labelKey: 'navigation.ecommercePages',
+        href: '/admin/ecommerce/pages',
+        icon: 'FileText',
         roles: ['admin'],
       },
     ],

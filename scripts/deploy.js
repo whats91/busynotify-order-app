@@ -89,6 +89,7 @@ const CONFIG = {
     ".next",
     "node_modules",
     ".env",
+    "public/theme",
     "data",
     "db",
     "logs",

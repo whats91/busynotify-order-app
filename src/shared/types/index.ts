@@ -230,6 +230,23 @@ export interface MaterialCenterApiResponse {
   };
 }
 
+export interface ThemeAssetInfo {
+  kind: 'logo' | 'icon';
+  url: string;
+  previewUrl: string;
+  extension: string | null;
+  updatedAt: string | null;
+  fallbackUrl: string;
+}
+
+export interface ThemeSettingsPayload {
+  appName: string;
+  appTitle: string;
+  logo: ThemeAssetInfo;
+  icon: ThemeAssetInfo;
+  supportedFormats: string[];
+}
+
 export interface ApiVoucherSeries {
   voucher_series_id: number;
   voucher_series_name: string;
@@ -400,12 +417,29 @@ export interface EcommerceCatalogProduct {
   hsnCode: string;
 }
 
+export interface EcommerceContentPage {
+  companyId: number;
+  financialYear: string;
+  slug: string;
+  title: string;
+  contentMarkdown: string;
+  updatedAt?: string;
+}
+
+export interface EcommerceContentPageSummary {
+  slug: string;
+  title: string;
+  href: string;
+  updatedAt?: string;
+}
+
 export interface EcommerceStorefrontPayload {
   isEnabled: boolean;
   activeContext: EcommerceStorefrontContext | null;
   selectedContext: EcommerceStorefrontContext | null;
   settings: EcommerceStorefrontSettings | null;
   products: EcommerceCatalogProduct[];
+  pages: EcommerceContentPageSummary[];
   categories: string[];
   filters: {
     searchQuery: string;
@@ -437,6 +471,14 @@ export interface UpdateEcommerceStorefrontPayload {
   checkoutLoginTitle: string;
   checkoutLoginDescription: string;
   footerNote: string;
+}
+
+export interface UpdateEcommerceContentPagePayload {
+  companyId: number;
+  financialYear: string;
+  slug: string;
+  title: string;
+  contentMarkdown: string;
 }
 
 export const PRODUCT_FIELD_KEYS = [
@@ -881,8 +923,11 @@ export interface TranslationSchema {
     tasks: string;
     configuration: string;
     salesmen: string;
+    theme: string;
+    themeBrandAssets: string;
     ecommerce: string;
     ecommerceStorefrontSettings: string;
+    ecommercePages: string;
     productConfiguration: string;
     salesTypeSettings: string;
     materialCenterConfiguration: string;

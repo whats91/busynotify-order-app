@@ -6,7 +6,9 @@
  * Role: application data/service layer.
  */
 import type {
+  EcommerceContentPage,
   EcommerceStorefrontPayload,
+  UpdateEcommerceContentPagePayload,
   UpdateEcommerceStorefrontPayload,
 } from '../../../shared/types';
 
@@ -68,6 +70,67 @@ export class EcommerceRepository {
 
     if (!response.ok || data.success !== true || !data.data) {
       throw new Error(data.error || 'Failed to save ecommerce storefront configuration.');
+    }
+
+    return data.data;
+  }
+
+  async getPages(companyId: number, financialYear: string): Promise<EcommerceContentPage[]> {
+    const searchParams = new URLSearchParams({
+      companyId: String(companyId),
+      financialYear,
+    });
+
+    const response = await fetch(
+      `/api/internal/admin/ecommerce/pages?${searchParams.toString()}`,
+      {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+      }
+    );
+
+    const data = (await response.json()) as {
+      success?: boolean;
+      error?: string;
+      data?: EcommerceContentPage[];
+    };
+
+    if (!response.ok || data.success !== true || !Array.isArray(data.data)) {
+      throw new Error(data.error || 'Failed to load ecommerce pages.');
+    }
+
+    return data.data;
+  }
+
+  async updatePage(
+    payload: UpdateEcommerceContentPagePayload
+  ): Promise<EcommerceContentPage> {
+    const response = await fetch(
+      `/api/internal/admin/ecommerce/pages/${encodeURIComponent(payload.slug)}`,
+      {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyId: payload.companyId,
+          financialYear: payload.financialYear,
+          title: payload.title,
+          contentMarkdown: payload.contentMarkdown,
+        }),
+      }
+    );
+
+    const data = (await response.json()) as {
+      success?: boolean;
+      error?: string;
+      data?: EcommerceContentPage;
+    };
+
+    if (!response.ok || data.success !== true || !data.data) {
+      throw new Error(data.error || 'Failed to save ecommerce page.');
     }
 
     return data.data;
