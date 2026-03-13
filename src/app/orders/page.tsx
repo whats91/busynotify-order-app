@@ -68,6 +68,28 @@ export default function OrdersPage() {
       .map(([id, name]) => ({ id, name }))
       .sort((left, right) => left.name.localeCompare(right.name));
   }, [orders, user?.role]);
+
+  const selectedOrderTaxBreakdown = useMemo(() => {
+    if (!selectedOrder) {
+      return [];
+    }
+
+    const breakdown = new Map<number, number>();
+
+    for (const item of selectedOrder.items) {
+      const taxRate = item.taxPercentage ?? 0;
+      const taxAmount =
+        item.taxAmount ?? Number((item.totalPrice * (taxRate / 100)).toFixed(6));
+      breakdown.set(taxRate, (breakdown.get(taxRate) ?? 0) + taxAmount);
+    }
+
+    return Array.from(breakdown.entries())
+      .map(([taxRate, taxAmount]) => ({
+        taxRate,
+        taxAmount,
+      }))
+      .sort((left, right) => left.taxRate - right.taxRate);
+  }, [selectedOrder]);
   
   useEffect(() => {
     // Only run after hydration is complete
@@ -362,8 +384,21 @@ export default function OrdersPage() {
                               <p className="text-sm text-muted-foreground">
                                 {item.productSku} × {item.quantity}
                               </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatCurrency(item.unitPrice)} each
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {t.cart.tax} ({item.taxPercentage}% GST): {formatCurrency(item.taxAmount)}
+                              </p>
                             </div>
-                            <p className="font-medium">{formatCurrency(item.totalPrice)}</p>
+                            <div className="text-right">
+                              <p className="font-medium">
+                                {formatCurrency(item.totalPrice + item.taxAmount)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatCurrency(item.totalPrice)} + tax
+                              </p>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -383,6 +418,14 @@ export default function OrdersPage() {
                     <span className="text-muted-foreground">{t.cart.subtotal}</span>
                     <span>{formatCurrency(selectedOrder.subtotal)}</span>
                   </div>
+                  {selectedOrderTaxBreakdown.map((entry) => (
+                    <div key={entry.taxRate} className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {t.cart.tax} ({entry.taxRate}% GST)
+                      </span>
+                      <span>{formatCurrency(entry.taxAmount)}</span>
+                    </div>
+                  ))}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{t.cart.tax}</span>
                     <span>{formatCurrency(selectedOrder.tax)}</span>
