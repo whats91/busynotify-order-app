@@ -64,7 +64,7 @@ const CONFIG = {
   branch: process.env.DEPLOY_BRANCH || "main",
   delayMs: Number(process.env.DEPLOY_DELAY_MS || 3000),
   pm2RestartCmd:
-    process.env.DEPLOY_PM2_CMD || "pm2 startOrRestart ecosystem.config.js --env production",
+    process.env.DEPLOY_PM2_CMD || "pm2 startOrRestart ecosystem.config.js --env production --update-env",
   pm2StopCmd:
     process.env.DEPLOY_PM2_STOP_CMD || "pm2 stop ecosystem.config.js --env production",
   lockFile: process.env.DEPLOY_LOCK_FILE || path.join(PROJECT_ROOT, ".deploy.lock"),

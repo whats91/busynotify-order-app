@@ -132,20 +132,21 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = 'production';
 }
 
-// Load .env files in order of precedence
+process.env.PROJECT_ROOT = process.env.PROJECT_ROOT || projectRoot;
+
+// Load .env files from lowest to highest precedence
 const nodeEnv = process.env.NODE_ENV;
 const envFiles = [
-  path.join(projectRoot, `.env.${nodeEnv}.local`),
+  path.join(projectRoot, '.env'),
   path.join(projectRoot, `.env.${nodeEnv}`),
   path.join(projectRoot, '.env.local'),
-  path.join(projectRoot, '.env'),
+  path.join(projectRoot, `.env.${nodeEnv}.local`),
 ];
 
 let envLoaded = false;
 for (const envFile of envFiles) {
   if (loadEnvFile(envFile)) {
     envLoaded = true;
-    break; // Stop after first found
   }
 }
 

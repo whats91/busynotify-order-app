@@ -88,7 +88,7 @@ module.exports = {
   apps: [
     {
       name: appName,
-      script: path.join('.next', 'standalone', 'server.js'),
+      script: path.join('scripts', 'start-with-env.js'),
       cwd: __dirname,
       
       // Environment variables from .env file
