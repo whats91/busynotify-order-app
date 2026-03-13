@@ -101,7 +101,10 @@ module.exports = {
       
       // Production-specific overrides
       env_production: {
+        ...envVars,
         NODE_ENV: 'production',
+        PORT: appPort,
+        PROJECT_ROOT: __dirname,
       },
       
       // Process management
