@@ -11,6 +11,16 @@
 
 import type { Order, OrderItem, OrderSummary, OrderStatus } from '../../../shared/types';
 
+const DEFAULT_ORDER_ITEM_TAX_PERCENTAGE = 18;
+
+function withDefaultTax(item: Omit<OrderItem, 'taxAmount' | 'taxPercentage'>): OrderItem {
+  return {
+    ...item,
+    taxAmount: item.totalPrice * (DEFAULT_ORDER_ITEM_TAX_PERCENTAGE / 100),
+    taxPercentage: DEFAULT_ORDER_ITEM_TAX_PERCENTAGE,
+  };
+}
+
 // In-memory order storage (Phase 1)
 let mockOrders: Order[] = [
   {
@@ -19,7 +29,7 @@ let mockOrders: Order[] = [
     customerId: 'cust_001',
     customerName: 'Rahul Sharma',
     items: [
-      {
+      withDefaultTax({
         id: 'item_001',
         productId: 'prod_001',
         productName: 'Wireless Mouse',
@@ -27,8 +37,8 @@ let mockOrders: Order[] = [
         quantity: 5,
         unitPrice: 899,
         totalPrice: 4495,
-      },
-      {
+      }),
+      withDefaultTax({
         id: 'item_002',
         productId: 'prod_002',
         productName: 'Bluetooth Keyboard',
@@ -36,7 +46,7 @@ let mockOrders: Order[] = [
         quantity: 3,
         unitPrice: 1499,
         totalPrice: 4497,
-      },
+      }),
     ],
     subtotal: 8992,
     tax: 1618.56,
@@ -53,7 +63,7 @@ let mockOrders: Order[] = [
     customerId: 'cust_002',
     customerName: 'Priya Patel',
     items: [
-      {
+      withDefaultTax({
         id: 'item_003',
         productId: 'prod_009',
         productName: 'Ergonomic Office Chair',
@@ -61,7 +71,7 @@ let mockOrders: Order[] = [
         quantity: 2,
         unitPrice: 8999,
         totalPrice: 17998,
-      },
+      }),
     ],
     subtotal: 17998,
     tax: 3239.64,
@@ -79,7 +89,7 @@ let mockOrders: Order[] = [
     customerId: 'cust_003',
     customerName: 'Amit Kumar',
     items: [
-      {
+      withDefaultTax({
         id: 'item_004',
         productId: 'prod_012',
         productName: 'HDMI Cable 2m',
@@ -87,8 +97,8 @@ let mockOrders: Order[] = [
         quantity: 10,
         unitPrice: 299,
         totalPrice: 2990,
-      },
-      {
+      }),
+      withDefaultTax({
         id: 'item_005',
         productId: 'prod_013',
         productName: 'Laptop Stand',
@@ -96,8 +106,8 @@ let mockOrders: Order[] = [
         quantity: 5,
         unitPrice: 1299,
         totalPrice: 6495,
-      },
-      {
+      }),
+      withDefaultTax({
         id: 'item_006',
         productId: 'prod_014',
         productName: 'Mouse Pad Large',
@@ -105,7 +115,7 @@ let mockOrders: Order[] = [
         quantity: 5,
         unitPrice: 599,
         totalPrice: 2995,
-      },
+      }),
     ],
     subtotal: 12480,
     tax: 2246.4,
@@ -122,7 +132,7 @@ let mockOrders: Order[] = [
     customerId: 'cust_001',
     customerName: 'Rahul Sharma',
     items: [
-      {
+      withDefaultTax({
         id: 'item_007',
         productId: 'prod_005',
         productName: 'A4 Copy Paper (500 sheets)',
@@ -130,8 +140,8 @@ let mockOrders: Order[] = [
         quantity: 20,
         unitPrice: 350,
         totalPrice: 7000,
-      },
-      {
+      }),
+      withDefaultTax({
         id: 'item_008',
         productId: 'prod_006',
         productName: 'Ball Pen Pack (10 pcs)',
@@ -139,7 +149,7 @@ let mockOrders: Order[] = [
         quantity: 10,
         unitPrice: 120,
         totalPrice: 1200,
-      },
+      }),
     ],
     subtotal: 8200,
     tax: 1476,

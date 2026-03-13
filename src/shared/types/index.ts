@@ -605,6 +605,8 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  taxAmount: number;
+  taxPercentage: number;
 }
 
 export interface Order {

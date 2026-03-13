@@ -47,6 +47,7 @@ interface OrderItemRow {
   quantity: number | bigint;
   unit_price: number;
   tax_rate: number;
+  tax_amount: number;
   line_total: number;
   cart_value: number;
 }
@@ -106,6 +107,8 @@ function mapOrderItems(rows: OrderItemRow[]): OrderItem[] {
     quantity: toNumber(row.quantity),
     unitPrice: row.unit_price,
     totalPrice: row.line_total,
+    taxAmount: row.tax_amount,
+    taxPercentage: row.tax_rate,
   }));
 }
 
@@ -196,6 +199,7 @@ async function initializeSchema() {
           quantity INTEGER NOT NULL,
           unit_price REAL NOT NULL,
           tax_rate REAL NOT NULL DEFAULT 18,
+          tax_amount REAL NOT NULL DEFAULT 0,
           line_total REAL NOT NULL,
           cart_value REAL NOT NULL,
           FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
@@ -229,6 +233,12 @@ async function initializeSchema() {
       await ensureColumnExists('orders', 'sale_type_name', 'TEXT');
       await ensureColumnExists('orders', 'material_center_id', 'TEXT');
       await ensureColumnExists('orders', 'material_center_name', 'TEXT');
+      await ensureColumnExists('order_items', 'tax_amount', 'REAL NOT NULL DEFAULT 0');
+      await db.$executeRawUnsafe(
+        `UPDATE order_items
+         SET tax_amount = ROUND(line_total * (tax_rate / 100.0), 6)
+         WHERE tax_rate > 0 AND (tax_amount IS NULL OR tax_amount = 0)`
+      );
       await db.$executeRawUnsafe(
         'CREATE INDEX IF NOT EXISTS idx_orders_product_id ON orders(product_id)'
       );
@@ -248,7 +258,9 @@ async function loadOrderItems(
 
   const placeholders = orderIds.map(() => '?').join(', ');
   const rows = await executor.$queryRawUnsafe<OrderItemRow[]>(
-    `SELECT id, order_id, product_id, product_name, product_sku, quantity, unit_price, tax_rate, line_total, cart_value
+    `SELECT id, order_id, product_id, product_name, product_sku, quantity, unit_price, tax_rate,
+            COALESCE(tax_amount, ROUND(line_total * (tax_rate / 100.0), 6)) AS tax_amount,
+            line_total, cart_value
      FROM order_items
      WHERE order_id IN (${placeholders})
      ORDER BY id ASC`,
@@ -432,6 +444,7 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
 
     for (const item of params.items) {
       const lineTotal = item.unitPrice * item.quantity;
+      const lineTaxAmount = Number((lineTotal * (item.taxRate / 100)).toFixed(6));
 
       await tx.$executeRawUnsafe(
         `INSERT INTO order_items (
@@ -442,9 +455,10 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
           quantity,
           unit_price,
           tax_rate,
+          tax_amount,
           line_total,
           cart_value
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         createdOrderId,
         item.productId,
         item.productName,
@@ -452,6 +466,7 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         item.quantity,
         item.unitPrice,
         item.taxRate,
+        lineTaxAmount,
         lineTotal,
         lineTotal
       );

@@ -87,6 +87,8 @@ export class OrderService {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         totalPrice: item.unitPrice * item.quantity,
+        taxAmount: item.unitPrice * item.quantity * (item.taxRate / 100),
+        taxPercentage: item.taxRate,
       }));
 
       const order = await orderRepository.create(
