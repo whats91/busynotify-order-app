@@ -107,6 +107,7 @@ const CONFIG = {
     ".db-shm",
     ".db-wal",
   ],
+  themeFileSuffixes: [".png", ".jpg", ".jpeg", ".svg", ".ico"],
 };
 
 // ====== Logging ======
@@ -350,16 +351,52 @@ const legacyPersistentPaths = [
     label: "SQLite data",
     sourceDir: path.join(CONFIG.projectPath, ".next", "standalone", "data"),
     targetDir: path.join(CONFIG.projectPath, "data"),
+    allowedSuffixes: CONFIG.databaseFileSuffixes,
   },
   {
     label: "theme assets",
     sourceDir: path.join(CONFIG.projectPath, ".next", "standalone", "public", "theme"),
     targetDir: path.join(CONFIG.projectPath, "public", "theme"),
+    allowedSuffixes: CONFIG.themeFileSuffixes,
   },
 ];
 
+function matchesAllowedSuffix(fileName, allowedSuffixes) {
+  return allowedSuffixes.some((suffix) => fileName.endsWith(suffix));
+}
+
+function hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes) {
+  if (!fs.existsSync(sourceDir)) {
+    return false;
+  }
+
+  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (hasPendingPersistentCopies(sourcePath, targetPath, allowedSuffixes)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (!entry.isFile() || !matchesAllowedSuffix(entry.name, allowedSuffixes)) {
+      continue;
+    }
+
+    if (shouldCopyPersistentFile(sourcePath, targetPath)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function hasLegacyPersistentStorage() {
-  return legacyPersistentPaths.some(({ sourceDir }) => fs.existsSync(sourceDir));
+  return legacyPersistentPaths.some(({ sourceDir, targetDir, allowedSuffixes }) =>
+    hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes)
+  );
 }
 
 function shouldCopyPersistentFile(sourcePath, targetPath) {
@@ -411,16 +448,18 @@ async function stopPm2ForLegacyMigration() {
   try {
     await runCommand(CONFIG.pm2StopCmd, [], CONFIG.projectPath);
     log("Stopped PM2 app before migrating legacy persistent storage", "yellow");
+    return true;
   } catch (error) {
     log(`PM2 stop skipped: ${error.message}`, "yellow");
+    return false;
   }
 }
 
 function migrateLegacyPersistentStorage() {
   let copiedFiles = 0;
 
-  for (const { label, sourceDir, targetDir } of legacyPersistentPaths) {
-    if (!fs.existsSync(sourceDir)) {
+  for (const { label, sourceDir, targetDir, allowedSuffixes } of legacyPersistentPaths) {
+    if (!hasPendingPersistentCopies(sourceDir, targetDir, allowedSuffixes)) {
       log(`No legacy ${label} found at ${path.relative(CONFIG.projectPath, sourceDir)}`, "cyan");
       continue;
     }
@@ -610,6 +649,8 @@ ${data.error.substring(0, 500)}${data.error.length > 500 ? "..." : ""}
 
 async function deploy() {
   const start = Date.now();
+  let pm2StoppedForMigration = false;
+  let pm2RestartAttempted = false;
   
   // Try to acquire deployment lock
   if (!acquireLock()) {
@@ -680,7 +721,7 @@ async function deploy() {
         "Detected runtime data under .next/standalone. Moving it into project-level persistent folders before cache cleanup.",
         "yellow"
       );
-      await stopPm2ForLegacyMigration();
+      pm2StoppedForMigration = await stopPm2ForLegacyMigration();
       const migratedFiles = migrateLegacyPersistentStorage();
       log(`Migrated ${migratedFiles} persistent file(s)`, migratedFiles > 0 ? "green" : "cyan");
 
@@ -722,6 +763,7 @@ async function deploy() {
 
     // STEP 6: Restart PM2
     logSection("STEP 6: pm2 restart");
+    pm2RestartAttempted = true;
     await runCommand(CONFIG.pm2RestartCmd, [], CONFIG.projectPath);
 
     // Small delay to ensure PM2 restart completes
@@ -746,6 +788,17 @@ async function deploy() {
       log(`Stack: ${err.stack}`, "red");
     }
     log(`Total time: ${totalSecs}s`, "red");
+
+    if (pm2StoppedForMigration && !pm2RestartAttempted) {
+      logSection("RECOVERY RESTART");
+      try {
+        pm2RestartAttempted = true;
+        await runCommand(CONFIG.pm2RestartCmd, [], CONFIG.projectPath);
+        log("PM2 recovery restart completed after deployment failure", "yellow");
+      } catch (restartError) {
+        log(`PM2 recovery restart failed: ${restartError.message}`, "red");
+      }
+    }
     
     // Send failure notification
     log("Sending failure notification...", "cyan");
