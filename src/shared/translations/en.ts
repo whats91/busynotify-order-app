@@ -135,6 +135,7 @@ export const en: TranslationSchema = {
     salesTypeSettings: 'Sales Type Settings',
     materialCenterConfiguration: 'Material Center Configuration',
     voucherSeriesConfiguration: 'Voucher Series Configuration',
+    orderNumberConfiguration: 'Order Number Configuration',
     customers: 'Customers',
     products: 'Products',
     reports: 'Reports',

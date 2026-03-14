@@ -214,6 +214,31 @@ export class OrderRepository {
   }
 
   /**
+   * Delete order
+   */
+  async delete(orderId: string): Promise<boolean> {
+    const response = await fetch(`/api/internal/orders/${orderId}`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    });
+
+    if (response.status === 404) {
+      return false;
+    }
+
+    const data = (await response.json()) as {
+      success?: boolean;
+      error?: string;
+    };
+
+    if (!response.ok || data.success !== true) {
+      throw new Error(data.error || 'Failed to delete order');
+    }
+
+    return true;
+  }
+
+  /**
    * Get orders with filters
    */
   async findWithFilter(filter: OrderFilter): Promise<Order[]> {

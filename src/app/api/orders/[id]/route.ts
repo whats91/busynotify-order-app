@@ -5,8 +5,13 @@
  * Interlinked With: src/lib/server/order-db.ts
  * Role: shared backend.
  */
-import { NextResponse } from 'next/server';
-import { getStoredOrderById } from '@/lib/server/order-db';
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  createForbiddenPrivateApiResponse,
+  createUnauthorizedPrivateApiResponse,
+  getPrivateApiSession,
+} from '@/app/api/_lib/private-api-session';
+import { deleteStoredOrder, getStoredOrderById } from '@/lib/server/order-db';
 
 export const runtime = 'nodejs';
 
@@ -38,6 +43,49 @@ export async function GET(
       {
         success: false,
         error: 'Failed to fetch order.',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getPrivateApiSession(request);
+
+    if (!session) {
+      return createUnauthorizedPrivateApiResponse();
+    }
+
+    if (session.user.role !== 'admin') {
+      return createForbiddenPrivateApiResponse();
+    }
+
+    const { id } = await params;
+    const wasDeleted = await deleteStoredOrder(id);
+
+    if (!wasDeleted) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Order not found.',
+        },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error('Failed to delete order:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Failed to delete order.',
       },
       { status: 500 }
     );

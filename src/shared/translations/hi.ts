@@ -135,6 +135,7 @@ export const hi: TranslationSchema = {
     salesTypeSettings: 'सेल्स टाइप सेटिंग्स',
     materialCenterConfiguration: 'मटेरियल सेंटर कॉन्फ़िगरेशन',
     voucherSeriesConfiguration: 'वाउचर सीरीज़ कॉन्फ़िगरेशन',
+    orderNumberConfiguration: 'ऑर्डर नंबर कॉन्फ़िगरेशन',
     customers: 'ग्राहक',
     products: 'उत्पाद',
     reports: 'रिपोर्ट',

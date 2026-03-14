@@ -19,6 +19,7 @@ export * from './material-center.service';
 export * from './material-center-config.service';
 export * from './voucher-series.service';
 export * from './voucher-series-config.service';
+export * from './order-number-config.service';
 export * from './ecommerce.service';
 export * from './order.service';
 export * from './salesman.service';

@@ -15,6 +15,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -29,15 +30,112 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Package, Eye, Loader2 } from 'lucide-react';
+import { Package, Eye, Loader2, Trash2 } from 'lucide-react';
 import { useAuthStore, useHasHydrated } from '@/shared/lib/stores';
 import { useTranslation } from '@/shared/lib/language-context';
 import { AppShell } from '@/shared/components/app-shell';
+import { FooterBar } from '@/shared/components/footer-bar';
 import { OrderStatusBadge } from '@/shared/components/order-status-badge';
 import { formatCurrency } from '@/shared/components/format-currency';
+import { confirmAlert } from '@/shared/lib/sweet-alert';
 import { toast } from '@/hooks/use-toast';
 import { orderService } from '@/versions/v1/services';
 import { ORDER_STATUSES, type Order, type OrderStatus } from '@/shared/types';
+
+type DateFilterOption =
+  | 'all'
+  | 'today'
+  | 'yesterday'
+  | 'thisWeek'
+  | 'thisMonth'
+  | 'thisYear'
+  | 'custom';
+
+const ORDERS_PAGE_SIZE = 10;
+
+function startOfDay(date: Date) {
+  const value = new Date(date);
+  value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function endOfDay(date: Date) {
+  const value = new Date(date);
+  value.setHours(23, 59, 59, 999);
+  return value;
+}
+
+function parseDateInput(value: string, endOfSelectedDay = false) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return endOfSelectedDay ? endOfDay(parsed) : startOfDay(parsed);
+}
+
+function getDateFilterRange(
+  filter: DateFilterOption,
+  customFrom: string,
+  customTo: string
+): { start: Date | null; end: Date | null } {
+  const now = new Date();
+
+  switch (filter) {
+    case 'today':
+      return {
+        start: startOfDay(now),
+        end: endOfDay(now),
+      };
+    case 'yesterday': {
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return {
+        start: startOfDay(yesterday),
+        end: endOfDay(yesterday),
+      };
+    }
+    case 'thisWeek': {
+      const start = startOfDay(now);
+      const day = start.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      start.setDate(start.getDate() + diff);
+      return {
+        start,
+        end: endOfDay(now),
+      };
+    }
+    case 'thisMonth': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return {
+        start: startOfDay(start),
+        end: endOfDay(now),
+      };
+    }
+    case 'thisYear': {
+      const start = new Date(now.getFullYear(), 0, 1);
+      return {
+        start: startOfDay(start),
+        end: endOfDay(now),
+      };
+    }
+    case 'custom':
+      return {
+        start: parseDateInput(customFrom),
+        end: parseDateInput(customTo, true),
+      };
+    default:
+      return {
+        start: null,
+        end: null,
+      };
+  }
+}
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -46,31 +144,36 @@ export default function OrdersPage() {
   const t = useTranslation();
   
   const [orders, setOrders] = useState<Order[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [customerFilter, setCustomerFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilterOption>('all');
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
   const isAdmin = user?.role === 'admin';
+  const showCustomerFilter = user?.role === 'admin' || user?.role === 'salesman';
 
-  const salesmanCustomerOptions = useMemo(() => {
-    if (user?.role !== 'salesman') {
+  const customerOptions = useMemo(() => {
+    if (!showCustomerFilter) {
       return [];
     }
 
-    const seen = new Map<string, string>();
+    const seen = new Set<string>();
 
     for (const order of orders) {
-      if (!seen.has(order.customerId)) {
-        seen.set(order.customerId, order.customerName);
+      const normalizedName = order.customerName.trim();
+
+      if (normalizedName) {
+        seen.add(normalizedName);
       }
     }
 
-    return Array.from(seen.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((left, right) => left.name.localeCompare(right.name));
-  }, [orders, user?.role]);
+    return Array.from(seen.values()).sort((left, right) => left.localeCompare(right));
+  }, [orders, showCustomerFilter]);
 
   const selectedOrderTaxBreakdown = useMemo(() => {
     if (!selectedOrder) {
@@ -110,26 +213,6 @@ export default function OrdersPage() {
     return () => clearTimeout(timer);
   }, [hasHydrated, isAuthenticated, user]);
   
-  useEffect(() => {
-    const nextOrders = orders.filter((order) => {
-      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-      const matchesCustomer = customerFilter === 'all' || order.customerId === customerFilter;
-      return matchesStatus && matchesCustomer;
-    });
-
-    setFilteredOrders(nextOrders);
-  }, [customerFilter, orders, statusFilter]);
-
-  useEffect(() => {
-    if (
-      customerFilter !== 'all' &&
-      user?.role === 'salesman' &&
-      !orders.some((order) => order.customerId === customerFilter)
-    ) {
-      setCustomerFilter('all');
-    }
-  }, [customerFilter, orders, user?.role]);
-  
   const loadOrders = async () => {
     try {
       let orderData: Order[] = [];
@@ -143,13 +226,81 @@ export default function OrdersPage() {
       }
       
       setOrders(orderData);
-      setFilteredOrders(orderData);
     } catch (error) {
       console.error('Failed to load orders:', error);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const filteredOrders = useMemo(() => {
+    const normalizedCustomerQuery = customerQuery.trim().toLowerCase();
+    const dateRange = getDateFilterRange(dateFilter, customDateFrom, customDateTo);
+
+    return orders.filter((order) => {
+      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+      const matchesCustomer =
+        !showCustomerFilter ||
+        normalizedCustomerQuery.length === 0 ||
+        order.customerName.toLowerCase().includes(normalizedCustomerQuery);
+
+      if (!matchesStatus || !matchesCustomer) {
+        return false;
+      }
+
+      if (!dateRange.start && !dateRange.end) {
+        return true;
+      }
+
+      const createdAt = new Date(order.createdAt);
+
+      if (Number.isNaN(createdAt.getTime())) {
+        return false;
+      }
+
+      if (dateRange.start && createdAt < dateRange.start) {
+        return false;
+      }
+
+      if (dateRange.end && createdAt > dateRange.end) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [
+    orders,
+    statusFilter,
+    showCustomerFilter,
+    customerQuery,
+    dateFilter,
+    customDateFrom,
+    customDateTo,
+  ]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PAGE_SIZE));
+
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * ORDERS_PAGE_SIZE;
+    return filteredOrders.slice(startIndex, startIndex + ORDERS_PAGE_SIZE);
+  }, [currentPage, filteredOrders]);
+
+  const paginationStartIndex =
+    filteredOrders.length === 0 ? 0 : (currentPage - 1) * ORDERS_PAGE_SIZE + 1;
+  const paginationEndIndex = Math.min(
+    currentPage * ORDERS_PAGE_SIZE,
+    filteredOrders.length
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, customerQuery, dateFilter, customDateFrom, customDateTo]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
   
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -171,6 +322,11 @@ export default function OrdersPage() {
     setSelectedOrder((currentOrder) =>
       currentOrder?.id === updatedOrder.id ? updatedOrder : currentOrder
     );
+  };
+
+  const removeDeletedOrder = (orderId: string) => {
+    setOrders((currentOrders) => currentOrders.filter((order) => order.id !== orderId));
+    setSelectedOrder((currentOrder) => (currentOrder?.id === orderId ? null : currentOrder));
   };
 
   const handleStatusUpdate = async (orderId: string, status: OrderStatus) => {
@@ -203,19 +359,62 @@ export default function OrdersPage() {
     }
   };
 
+  const handleDeleteOrder = async (order: Order) => {
+    if (!isAdmin) {
+      return;
+    }
+
+    const confirmed = await confirmAlert({
+      title: 'Delete Order',
+      text: `Delete order "${order.orderNumber}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Keep Order',
+      destructive: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingOrderId(order.id);
+
+    try {
+      const result = await orderService.deleteOrder(order.id);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete order');
+      }
+
+      removeDeletedOrder(order.id);
+      toast({
+        title: 'Order deleted',
+        description: `${order.orderNumber} was deleted successfully.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to delete order',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setDeletingOrderId(null);
+    }
+  };
+
   const renderStatusControl = (order: Order, triggerClassName = 'w-[9rem]') => {
     if (!isAdmin) {
       return <OrderStatusBadge status={order.status} />;
     }
 
     const isUpdating = updatingOrderId === order.id;
+    const isDeleting = deletingOrderId === order.id;
 
     return (
       <div className="flex items-center gap-2">
         <Select
           value={order.status}
           onValueChange={(value) => void handleStatusUpdate(order.id, value as OrderStatus)}
-          disabled={isUpdating}
+          disabled={isUpdating || isDeleting}
         >
           <SelectTrigger className={`${triggerClassName} h-8`}>
             <SelectValue />
@@ -258,7 +457,9 @@ export default function OrdersPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t.orderList.title}</h1>
             <p className="text-muted-foreground">
-              {filteredOrders.length} orders
+              {filteredOrders.length === orders.length
+                ? `${filteredOrders.length} orders`
+                : `${filteredOrders.length} of ${orders.length} orders`}
             </p>
           </div>
           
@@ -269,36 +470,71 @@ export default function OrdersPage() {
         </div>
         
         {/* Filters */}
-        <div className="flex flex-col gap-4 sm:flex-row">
+        <div className="flex flex-wrap items-end gap-3">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
+            <SelectTrigger className="w-full sm:w-44">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="shipped">Shipped</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              {ORDER_STATUSES.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {formatStatusLabel(status)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
-          {user.role === 'salesman' ? (
-            <Select value={customerFilter} onValueChange={setCustomerFilter}>
-              <SelectTrigger className="w-full sm:w-64">
-                <SelectValue placeholder="Filter by customer" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Customers</SelectItem>
-                {salesmanCustomerOptions.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </SelectItem>
+          <Select
+            value={dateFilter}
+            onValueChange={(value) => setDateFilter(value as DateFilterOption)}
+          >
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue placeholder="Filter by date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dates</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
+              <SelectItem value="thisWeek">This Week</SelectItem>
+              <SelectItem value="thisMonth">This Month</SelectItem>
+              <SelectItem value="thisYear">This Year</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {showCustomerFilter ? (
+            <>
+              <Input
+                list="order-customer-options"
+                value={customerQuery}
+                onChange={(event) => setCustomerQuery(event.target.value)}
+                placeholder="Search customer"
+                className="w-full sm:w-64"
+              />
+              <datalist id="order-customer-options">
+                {customerOptions.map((customerName) => (
+                  <option key={customerName} value={customerName} />
                 ))}
-              </SelectContent>
-            </Select>
+              </datalist>
+            </>
+          ) : null}
+
+          {dateFilter === 'custom' ? (
+            <>
+              <Input
+                type="date"
+                value={customDateFrom}
+                onChange={(event) => setCustomDateFrom(event.target.value)}
+                className="w-full sm:w-44"
+              />
+              <Input
+                type="date"
+                value={customDateTo}
+                onChange={(event) => setCustomDateTo(event.target.value)}
+                className="w-full sm:w-44"
+              />
+            </>
           ) : null}
         </div>
         
@@ -322,13 +558,14 @@ export default function OrdersPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-2">
-            {filteredOrders.map((order) => (
+          <>
+          <div className="space-y-1">
+            {paginatedOrders.map((order) => (
               <Card key={order.id} className="overflow-hidden">
                 <CardContent className="p-0">
                   {/* Mobile Layout */}
-                  <div className="px-3 py-2 sm:hidden">
-                    <div className="mb-1.5 flex items-start justify-between gap-3">
+                  <div className="px-3 py-0.5 sm:hidden">
+                    <div className="mb-0.5 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium leading-tight">{order.orderNumber}</p>
                         <p className="text-sm text-muted-foreground">
@@ -344,19 +581,36 @@ export default function OrdersPage() {
                         </p>
                         <p className="font-bold">{formatCurrency(order.total)}</p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedOrder(order)}
-                      >
-                        <Eye className="mr-2 h-4 w-4" />
-                        {t.orderList.viewDetails}
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          {t.orderList.viewDetails}
+                        </Button>
+                        {isAdmin ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="px-2 text-destructive hover:text-destructive"
+                            onClick={() => void handleDeleteOrder(order)}
+                            disabled={deletingOrderId === order.id}
+                          >
+                            {deletingOrderId === order.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                   
                   {/* Desktop Layout */}
-                  <div className="hidden sm:grid sm:grid-cols-12 sm:items-center sm:gap-3 sm:px-4 sm:py-1.5">
+                  <div className="hidden sm:grid sm:grid-cols-12 sm:items-center sm:gap-2 sm:px-4 sm:py-0.5">
                     <div className="col-span-3">
                       <p className="font-medium leading-tight">{order.orderNumber}</p>
                       <p className="text-sm text-muted-foreground">
@@ -378,7 +632,22 @@ export default function OrdersPage() {
                     <div className="col-span-2 flex justify-center">
                       {renderStatusControl(order)}
                     </div>
-                    <div className="col-span-1 flex justify-end">
+                    <div className="col-span-1 flex justify-end gap-1">
+                      {isAdmin ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => void handleDeleteOrder(order)}
+                          disabled={deletingOrderId === order.id}
+                        >
+                          {deletingOrderId === order.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      ) : null}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -392,6 +661,30 @@ export default function OrdersPage() {
               </Card>
             ))}
           </div>
+          <FooterBar
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredOrders.length}
+            startIndex={paginationStartIndex}
+            endIndex={paginationEndIndex}
+            onPageChange={(page) =>
+              setCurrentPage(Math.min(Math.max(page, 1), totalPages))
+            }
+            className="rounded-xl border"
+          />
+          <FooterBar
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredOrders.length}
+            startIndex={paginationStartIndex}
+            endIndex={paginationEndIndex}
+            onPageChange={(page) =>
+              setCurrentPage(Math.min(Math.max(page, 1), totalPages))
+            }
+            className="rounded-xl border"
+            isMobile
+          />
+          </>
         )}
         
         {/* Order Detail Dialog */}
@@ -509,6 +802,23 @@ export default function OrdersPage() {
                     <span>{t.cart.grandTotal}</span>
                     <span className="text-lg font-semibold">{formatCurrency(selectedOrder.total)}</span>
                   </div>
+                  {isAdmin ? (
+                    <div className="mt-3 flex justify-end">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => void handleDeleteOrder(selectedOrder)}
+                        disabled={deletingOrderId === selectedOrder.id}
+                      >
+                        {deletingOrderId === selectedOrder.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="mr-2 h-4 w-4" />
+                        )}
+                        Delete Order
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               </>
             )}

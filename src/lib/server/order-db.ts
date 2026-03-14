@@ -9,6 +9,7 @@ import 'server-only';
 
 import type { PrismaClient } from '@prisma/client';
 import { db } from '@/lib/db';
+import { reserveNextOrderNumber } from '@/lib/server/order-number-config-db';
 import type { Order, OrderItem, OrderStatus } from '@/shared/types';
 
 interface OrderRow {
@@ -149,6 +150,11 @@ function mapOrder(orderRow: OrderRow, itemRows: OrderItemRow[]): Order {
     createdByRole: orderRow.created_by_role,
     notes: orderRow.notes || undefined,
   };
+}
+
+function generateFallbackOrderNumber(nextId: number): string {
+  const year = new Date().getFullYear();
+  return `ORD-${year}-${String(nextId).padStart(6, '0')}`;
 }
 
 async function ensureColumnExists(
@@ -299,11 +305,6 @@ async function loadOrderItems(
   }, new Map<number, OrderItemRow[]>());
 }
 
-function generateOrderNumber(nextId: number): string {
-  const year = new Date().getFullYear();
-  return `ORD-${year}-${String(nextId).padStart(6, '0')}`;
-}
-
 export async function listStoredOrders(filters: OrderQueryOptions = {}): Promise<Order[]> {
   await initializeSchema();
 
@@ -406,11 +407,16 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
   const salesmanId = params.createdByRole === 'salesman' ? params.createdBy : null;
 
   const orderId = await db.$transaction(async (tx) => {
-    const nextIdRows = await tx.$queryRawUnsafe<Array<{ nextId: number | bigint }>>(
-      'SELECT COALESCE(MAX(id), 0) + 1 AS nextId FROM orders'
-    );
-    const nextId = toNumber(nextIdRows[0]?.nextId);
-    const orderNumber = generateOrderNumber(nextId || 1);
+    let orderNumber: string;
+
+    if (params.companyId != null && params.financialYear) {
+      orderNumber = await reserveNextOrderNumber(tx, params.companyId, params.financialYear);
+    } else {
+      const nextIdRows = await tx.$queryRawUnsafe<Array<{ nextId: number | bigint }>>(
+        'SELECT COALESCE(MAX(id), 0) + 1 AS nextId FROM orders'
+      );
+      orderNumber = generateFallbackOrderNumber(toNumber(nextIdRows[0]?.nextId) || 1);
+    }
 
     await tx.$executeRawUnsafe(
       `INSERT INTO orders (
@@ -551,4 +557,33 @@ export async function updateStoredOrderStatus(
   }
 
   return getStoredOrderById(String(numericOrderId), companyId);
+}
+
+export async function deleteStoredOrder(
+  orderId: string,
+  companyId?: number
+): Promise<boolean> {
+  await initializeSchema();
+
+  const numericOrderId = Number(orderId);
+
+  if (!Number.isFinite(numericOrderId)) {
+    return false;
+  }
+
+  const params: Array<string | number> = [numericOrderId];
+  const companyFilterSql =
+    companyId != null
+      ? (() => {
+          params.push(companyId);
+          return ' AND company_id = ?';
+        })()
+      : '';
+
+  const deletedCount = await db.$executeRawUnsafe(
+    `DELETE FROM orders WHERE id = ?${companyFilterSql}`,
+    ...params
+  );
+
+  return deletedCount > 0;
 }

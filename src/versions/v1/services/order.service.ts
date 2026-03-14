@@ -168,6 +168,34 @@ export class OrderService {
       };
     }
   }
+
+  /**
+   * Delete order
+   */
+  async deleteOrder(orderId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      const wasDeleted = await orderRepository.delete(orderId);
+
+      if (!wasDeleted) {
+        return {
+          success: false,
+          error: 'Order not found',
+        };
+      }
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to delete order',
+      };
+    }
+  }
 }
 
 // Singleton instance

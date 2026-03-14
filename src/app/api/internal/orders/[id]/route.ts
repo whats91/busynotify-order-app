@@ -7,4 +7,4 @@
  */
 export const runtime = 'nodejs';
 
-export { GET } from '@/app/api/orders/[id]/route';
+export { DELETE, GET } from '@/app/api/orders/[id]/route';

@@ -14,6 +14,7 @@
 import React, { ReactNode, useEffect, useLayoutEffect } from 'react';
 import { AppConfigProvider } from '../lib/app-config-context';
 import { LanguageProvider } from '../lib/language-context';
+import { SweetAlertProvider } from '../lib/sweet-alert';
 import { THEME_ASSETS_UPDATED_EVENT } from '../lib/theme-asset-events';
 import {
   useAuthStore,
@@ -163,6 +164,7 @@ export function Providers({ children, appName, appTitle }: ProvidersProps) {
     <AppConfigProvider value={{ appName, appTitle }}>
       <LanguageProvider>
         {children}
+        <SweetAlertProvider />
       </LanguageProvider>
     </AppConfigProvider>
   );

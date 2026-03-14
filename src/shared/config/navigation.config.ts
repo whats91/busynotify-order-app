@@ -97,6 +97,13 @@ export const navigationItems: NavigationItem[] = [
         icon: 'FileText',
         roles: ['admin'],
       },
+      {
+        id: 'order-number-configuration',
+        labelKey: 'navigation.orderNumberConfiguration',
+        href: '/admin/order-number-configuration',
+        icon: 'FileText',
+        roles: ['admin'],
+      },
     ],
   },
   {

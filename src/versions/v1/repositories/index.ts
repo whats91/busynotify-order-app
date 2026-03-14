@@ -19,6 +19,7 @@ export * from './material-center.repository';
 export * from './material-center-config.repository';
 export * from './voucher-series.repository';
 export * from './voucher-series-config.repository';
+export * from './order-number-config.repository';
 export * from './ecommerce.repository';
 export * from './order.repository';
 export * from './salesman.repository';

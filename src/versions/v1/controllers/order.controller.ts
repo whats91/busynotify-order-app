@@ -9,7 +9,7 @@
 // ORDER CONTROLLER - Request/Response Handling for Orders
 // =====================================================
 
-import type { Order, OrderFilter, ApiResponse } from '../../../shared/types';
+import type { Order, OrderFilter, ApiResponse, OrderStatus } from '../../../shared/types';
 import { orderService } from '../services/order.service';
 
 export class OrderController {
@@ -149,7 +149,7 @@ export class OrderController {
    */
   async updateOrderStatus(
     orderId: string,
-    status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
+    status: OrderStatus
   ): Promise<ApiResponse<{ order: Order }>> {
     const result = await orderService.updateOrderStatus(orderId, status);
     
@@ -164,6 +164,26 @@ export class OrderController {
     return {
       success: false,
       error: result.error || 'Failed to update order status',
+    };
+  }
+
+  /**
+   * Delete order
+   */
+  async deleteOrder(orderId: string): Promise<ApiResponse<Record<string, never>>> {
+    const result = await orderService.deleteOrder(orderId);
+
+    if (result.success) {
+      return {
+        success: true,
+        data: {},
+        message: 'Order deleted',
+      };
+    }
+
+    return {
+      success: false,
+      error: result.error || 'Failed to delete order',
     };
   }
 }

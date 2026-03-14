@@ -40,6 +40,10 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> = 
     label: 'Delivered',
     className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   },
+  posted: {
+    label: 'Posted',
+    className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+  },
   cancelled: {
     label: 'Cancelled',
     className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',

@@ -40,6 +40,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { useAuthStore, useHasHydrated } from '@/shared/lib/stores';
 import { useTranslation } from '@/shared/lib/language-context';
+import { confirmAlert } from '@/shared/lib/sweet-alert';
 import { salesmanService } from '@/versions/v1/services';
 import type { CreateSalesmanPayload, Salesman, UpdateSalesmanPayload } from '@/shared/types';
 
@@ -232,7 +233,13 @@ export default function AdminSalesmenPage() {
   };
 
   const handleDelete = async (salesman: Salesman) => {
-    const confirmed = window.confirm(`Delete salesman "${salesman.name}"?`);
+    const confirmed = await confirmAlert({
+      title: 'Delete Salesman',
+      text: `Delete salesman "${salesman.name}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Keep Salesman',
+      destructive: true,
+    });
 
     if (!confirmed) {
       return;

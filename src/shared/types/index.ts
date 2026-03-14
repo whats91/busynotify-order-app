@@ -272,6 +272,43 @@ export interface UpdateVoucherSeriesConfigPayload {
   voucherSeriesName: string;
 }
 
+export const ORDER_NUMBER_SERIAL_POSITIONS = [
+  'start',
+  'afterPrefix',
+  'beforeSuffix',
+  'end',
+] as const;
+
+export type OrderNumberSerialPosition = (typeof ORDER_NUMBER_SERIAL_POSITIONS)[number];
+
+export interface OrderNumberConfig {
+  companyId: number;
+  financialYear: string;
+  prefix: string;
+  suffix: string;
+  separator: string;
+  includeYear: boolean;
+  includeMonth: boolean;
+  includeDay: boolean;
+  serialPosition: OrderNumberSerialPosition;
+  serialPadding: number;
+  lastSerial: number;
+  updatedAt?: string;
+}
+
+export interface UpdateOrderNumberConfigPayload {
+  companyId: number;
+  financialYear: string;
+  prefix: string;
+  suffix: string;
+  separator: string;
+  includeYear: boolean;
+  includeMonth: boolean;
+  includeDay: boolean;
+  serialPosition: OrderNumberSerialPosition;
+  serialPadding: number;
+}
+
 export interface VoucherSeriesApiResponse {
   success: boolean;
   data: VoucherSeries[];
@@ -609,6 +646,7 @@ export const ORDER_STATUSES = [
   'processing',
   'shipped',
   'delivered',
+  'posted',
   'cancelled',
 ] as const;
 
@@ -955,6 +993,7 @@ export interface TranslationSchema {
     salesTypeSettings: string;
     materialCenterConfiguration: string;
     voucherSeriesConfiguration: string;
+    orderNumberConfiguration: string;
     customers: string;
     products: string;
     reports: string;
