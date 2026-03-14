@@ -35,8 +35,9 @@ import { useTranslation } from '@/shared/lib/language-context';
 import { AppShell } from '@/shared/components/app-shell';
 import { OrderStatusBadge } from '@/shared/components/order-status-badge';
 import { formatCurrency } from '@/shared/components/format-currency';
+import { toast } from '@/hooks/use-toast';
 import { orderService } from '@/versions/v1/services';
-import type { Order } from '@/shared/types';
+import { ORDER_STATUSES, type Order, type OrderStatus } from '@/shared/types';
 
 export default function OrdersPage() {
   const router = useRouter();
@@ -50,6 +51,8 @@ export default function OrdersPage() {
   const [customerFilter, setCustomerFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const isAdmin = user?.role === 'admin';
 
   const salesmanCustomerOptions = useMemo(() => {
     if (user?.role !== 'salesman') {
@@ -157,6 +160,78 @@ export default function OrdersPage() {
       minute: '2-digit',
     });
   };
+
+  const formatStatusLabel = (status: OrderStatus) =>
+    status.charAt(0).toUpperCase() + status.slice(1);
+
+  const applyUpdatedOrder = (updatedOrder: Order) => {
+    setOrders((currentOrders) =>
+      currentOrders.map((order) => (order.id === updatedOrder.id ? updatedOrder : order))
+    );
+    setSelectedOrder((currentOrder) =>
+      currentOrder?.id === updatedOrder.id ? updatedOrder : currentOrder
+    );
+  };
+
+  const handleStatusUpdate = async (orderId: string, status: OrderStatus) => {
+    if (!isAdmin) {
+      return;
+    }
+
+    setUpdatingOrderId(orderId);
+
+    try {
+      const result = await orderService.updateOrderStatus(orderId, status);
+
+      if (!result.success || !result.order) {
+        throw new Error(result.error || 'Failed to update order status');
+      }
+
+      applyUpdatedOrder(result.order);
+      toast({
+        title: 'Order status updated',
+        description: `${result.order.orderNumber} is now ${formatStatusLabel(status)}.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to update order status',
+        description: error instanceof Error ? error.message : 'Please try again.',
+      });
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
+  const renderStatusControl = (order: Order, triggerClassName = 'w-[9rem]') => {
+    if (!isAdmin) {
+      return <OrderStatusBadge status={order.status} />;
+    }
+
+    const isUpdating = updatingOrderId === order.id;
+
+    return (
+      <div className="flex items-center gap-2">
+        <Select
+          value={order.status}
+          onValueChange={(value) => void handleStatusUpdate(order.id, value as OrderStatus)}
+          disabled={isUpdating}
+        >
+          <SelectTrigger className={`${triggerClassName} h-8`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ORDER_STATUSES.map((status) => (
+              <SelectItem key={status} value={status}>
+                {formatStatusLabel(status)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {isUpdating ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+      </div>
+    );
+  };
   
   // Show loading until hydration is complete
   if (!hasHydrated) {
@@ -247,20 +322,20 @@ export default function OrdersPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-2">
             {filteredOrders.map((order) => (
               <Card key={order.id} className="overflow-hidden">
                 <CardContent className="p-0">
                   {/* Mobile Layout */}
-                  <div className="p-4 sm:hidden">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="font-medium">{order.orderNumber}</p>
+                  <div className="px-3 py-2 sm:hidden">
+                    <div className="mb-1.5 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium leading-tight">{order.orderNumber}</p>
                         <p className="text-sm text-muted-foreground">
                           {formatDate(order.createdAt)}
                         </p>
                       </div>
-                      <OrderStatusBadge status={order.status} />
+                      {renderStatusControl(order, 'w-[8.25rem]')}
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
@@ -281,9 +356,9 @@ export default function OrdersPage() {
                   </div>
                   
                   {/* Desktop Layout */}
-                  <div className="hidden sm:grid sm:grid-cols-12 sm:gap-4 sm:items-center sm:p-4">
+                  <div className="hidden sm:grid sm:grid-cols-12 sm:items-center sm:gap-3 sm:px-4 sm:py-1.5">
                     <div className="col-span-3">
-                      <p className="font-medium">{order.orderNumber}</p>
+                      <p className="font-medium leading-tight">{order.orderNumber}</p>
                       <p className="text-sm text-muted-foreground">
                         {formatDate(order.createdAt)}
                       </p>
@@ -296,12 +371,12 @@ export default function OrdersPage() {
                       <p className="text-sm text-muted-foreground">{t.cart.items}</p>
                       <p className="font-medium">{order.items.length} items</p>
                     </div>
-                    <div className="col-span-2 text-right">
+                    <div className="col-span-1 text-right">
                       <p className="text-sm text-muted-foreground">{t.orderList.total}</p>
                       <p className="font-bold">{formatCurrency(order.total)}</p>
                     </div>
-                    <div className="col-span-1 flex justify-center">
-                      <OrderStatusBadge status={order.status} />
+                    <div className="col-span-2 flex justify-center">
+                      {renderStatusControl(order)}
                     </div>
                     <div className="col-span-1 flex justify-end">
                       <Button
@@ -333,9 +408,9 @@ export default function OrdersPage() {
               <>
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
                   <div className="space-y-4 px-4 py-4 sm:px-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between gap-3">
                       <span className="text-sm text-muted-foreground">{t.orderList.status}</span>
-                      <OrderStatusBadge status={selectedOrder.status} />
+                      {renderStatusControl(selectedOrder, 'w-[10rem]')}
                     </div>
                     
                     <div className="flex items-center justify-between">

@@ -5,8 +5,13 @@
  * Interlinked With: src/lib/server/order-db.ts, src/shared/types/index.ts
  * Role: shared backend.
  */
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import {
+  createForbiddenPrivateApiResponse,
+  createUnauthorizedPrivateApiResponse,
+  getPrivateApiSession,
+} from '@/app/api/_lib/private-api-session';
 import { updateStoredOrderStatus } from '@/lib/server/order-db';
 import { ORDER_STATUSES } from '@/shared/types';
 
@@ -17,10 +22,20 @@ const updateOrderStatusSchema = z.object({
 });
 
 async function handleStatusUpdate(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getPrivateApiSession(request);
+
+    if (!session) {
+      return createUnauthorizedPrivateApiResponse();
+    }
+
+    if (session.user.role !== 'admin') {
+      return createForbiddenPrivateApiResponse();
+    }
+
     const { id } = await params;
     const parsed = updateOrderStatusSchema.safeParse(await request.json());
 
@@ -65,14 +80,14 @@ async function handleStatusUpdate(
 }
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   return handleStatusUpdate(request, context);
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   return handleStatusUpdate(request, context);
