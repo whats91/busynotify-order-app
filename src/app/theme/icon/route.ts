@@ -6,13 +6,22 @@
  * Role: shared backend.
  */
 import { NextResponse } from 'next/server';
-import { getThemeAsset } from '@/lib/server/theme-assets';
+import { readThemeAsset } from '@/lib/server/theme-assets';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
-  const asset = await getThemeAsset('icon');
-  const targetPath = asset ? `/theme/icon.${asset.extension}` : '/logo.svg';
+  const asset = await readThemeAsset('icon');
 
-  return NextResponse.redirect(new URL(targetPath, request.url), 307);
+  if (!asset) {
+    return NextResponse.redirect(new URL('/logo.svg', request.url), 307);
+  }
+
+  return new NextResponse(asset.buffer, {
+    status: 200,
+    headers: {
+      'Content-Type': asset.contentType,
+      'Cache-Control': 'no-store, max-age=0',
+    },
+  });
 }

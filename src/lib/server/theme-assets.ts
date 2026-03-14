@@ -25,6 +25,13 @@ const mimeTypeToExtension: Record<string, ThemeAssetExtension> = {
   'image/svg+xml': 'svg',
 };
 
+const extensionToMimeType: Record<ThemeAssetExtension, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  svg: 'image/svg+xml',
+};
+
 const fallbackAssetUrls: Record<ThemeAssetKind, string> = {
   logo: '/logo.svg',
   icon: '/logo.svg',
@@ -77,6 +84,20 @@ export async function getThemeAsset(kind: ThemeAssetKind) {
   return getExistingAssetPath(kind);
 }
 
+export async function readThemeAsset(kind: ThemeAssetKind) {
+  const asset = await getThemeAsset(kind);
+
+  if (!asset) {
+    return null;
+  }
+
+  return {
+    ...asset,
+    contentType: extensionToMimeType[asset.extension],
+    buffer: await fs.readFile(asset.path),
+  };
+}
+
 function buildThemeAssetInfo(
   kind: ThemeAssetKind,
   currentAsset: {
@@ -85,7 +106,7 @@ function buildThemeAssetInfo(
   } | null
 ): ThemeAssetInfo {
   const fallbackUrl = fallbackAssetUrls[kind];
-  const baseUrl = currentAsset ? `/theme/${kind}.${currentAsset.extension}` : fallbackUrl;
+  const baseUrl = currentAsset ? `/theme/${kind}` : fallbackUrl;
 
   return {
     kind,
