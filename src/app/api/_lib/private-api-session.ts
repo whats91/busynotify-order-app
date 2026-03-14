@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { User } from '@/shared/types';
 
 const SESSION_COOKIE_NAME = 'busy-notify-session';
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+export const PRIVATE_API_SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
@@ -109,7 +109,7 @@ function deserializePayload(value: string): PrivateApiSession | null {
 
 export async function createPrivateApiSessionCookieValue(
   user: User,
-  durationMs: number = SESSION_DURATION_MS
+  durationMs: number = PRIVATE_API_SESSION_DURATION_MS
 ): Promise<string> {
   const secret = getSessionSecret();
 
@@ -178,6 +178,7 @@ export function getPrivateApiSessionCookieOptions(expiresAt: number) {
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     expires: new Date(expiresAt),
+    maxAge: Math.max(0, Math.floor((expiresAt - Date.now()) / 1000)),
   };
 }
 

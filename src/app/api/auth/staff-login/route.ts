@@ -13,6 +13,7 @@ import {
   createPrivateApiSessionCookieValue,
   getPrivateApiSessionCookieName,
   getPrivateApiSessionCookieOptions,
+  PRIVATE_API_SESSION_DURATION_MS,
 } from '@/app/api/_lib/private-api-session';
 
 export const runtime = 'nodejs';
@@ -64,11 +65,15 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const cookieValue = await createPrivateApiSessionCookieValue(adminUser);
+      const expiresAt = Date.now() + PRIVATE_API_SESSION_DURATION_MS;
+      const cookieValue = await createPrivateApiSessionCookieValue(
+        adminUser,
+        PRIVATE_API_SESSION_DURATION_MS
+      );
       response.cookies.set(
         getPrivateApiSessionCookieName(),
         cookieValue,
-        getPrivateApiSessionCookieOptions(Date.now() + 24 * 60 * 60 * 1000)
+        getPrivateApiSessionCookieOptions(expiresAt)
       );
 
       return response;
@@ -93,11 +98,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const cookieValue = await createPrivateApiSessionCookieValue(salesmanUser);
+    const expiresAt = Date.now() + PRIVATE_API_SESSION_DURATION_MS;
+    const cookieValue = await createPrivateApiSessionCookieValue(
+      salesmanUser,
+      PRIVATE_API_SESSION_DURATION_MS
+    );
     response.cookies.set(
       getPrivateApiSessionCookieName(),
       cookieValue,
-      getPrivateApiSessionCookieOptions(Date.now() + 24 * 60 * 60 * 1000)
+      getPrivateApiSessionCookieOptions(expiresAt)
     );
 
     return response;

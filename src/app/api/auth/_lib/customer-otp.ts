@@ -18,6 +18,7 @@ import type {
   CustomerIdentity,
   User,
 } from '@/shared/types';
+import { PRIVATE_API_SESSION_DURATION_MS } from '@/app/api/_lib/private-api-session';
 
 interface OtpRecord {
   key: string;
@@ -495,6 +496,6 @@ export function createCustomerSession(params: CreateCustomerSessionParams): Auth
   return {
     user,
     token: `customer_session_${randomUUID()}`,
-    expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+    expiresAt: Date.now() + PRIVATE_API_SESSION_DURATION_MS,
   };
 }
