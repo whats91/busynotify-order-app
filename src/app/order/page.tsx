@@ -820,10 +820,6 @@ function OrderPageInner() {
     };
   }, [hasHydrated, isAuthenticated, selectedCompany, user]);
 
-  useEffect(() => {
-    setPricesIncludeTax(isTaxInclusiveSaleTypeName(activeSaleTypeName));
-  }, [activeSaleTypeName, setPricesIncludeTax]);
-
   const filteredCustomers = useMemo(
     () =>
       customers.filter((customer) => {
@@ -858,6 +854,10 @@ function OrderPageInner() {
       ? salesTypeConfig.sameStateSaleTypeName
       : salesTypeConfig.interstateSaleTypeName;
   }, [activeCustomerState, salesTypeConfig]);
+
+  useEffect(() => {
+    setPricesIncludeTax(isTaxInclusiveSaleTypeName(activeSaleTypeName));
+  }, [activeSaleTypeName, setPricesIncludeTax]);
 
   const canBrowseProducts = Boolean(selectedCompany) && (!isSalesman || Boolean(customerId));
 
