@@ -147,6 +147,15 @@ function normalizeStateName(value: string | undefined | null): string {
   return value?.trim().toLowerCase() || '';
 }
 
+function normalizeSaleTypeName(value: string | undefined | null): string {
+  return value?.trim().toLowerCase().replace(/\s+/g, '') || '';
+}
+
+function isTaxInclusiveSaleTypeName(value: string | undefined | null): boolean {
+  const normalized = normalizeSaleTypeName(value);
+  return normalized.includes('taxincl');
+}
+
 function getStockDisplayLabel(
   stock: number,
   settings: ProductStockDisplaySettings
@@ -302,6 +311,8 @@ function OrderPageInner() {
     clearCart,
     setCustomer,
     clearCustomer,
+    setPricesIncludeTax,
+    pricesIncludeTax,
   } = useCartStore();
   const { pageSize } = usePaginationStore();
   const t = useTranslation();
@@ -809,6 +820,10 @@ function OrderPageInner() {
     };
   }, [hasHydrated, isAuthenticated, selectedCompany, user]);
 
+  useEffect(() => {
+    setPricesIncludeTax(isTaxInclusiveSaleTypeName(activeSaleTypeName));
+  }, [activeSaleTypeName, setPricesIncludeTax]);
+
   const filteredCustomers = useMemo(
     () =>
       customers.filter((customer) => {
@@ -830,6 +845,19 @@ function OrderPageInner() {
   const activeCustomerState = activeCustomerRecord?.state?.trim() || '';
   const activeMaterialCenterId = materialCenterConfig?.materialCenterId?.trim() || '';
   const activeMaterialCenterName = materialCenterConfig?.materialCenterName?.trim() || '';
+  const activeSaleTypeName = useMemo(() => {
+    if (!salesTypeConfig || !activeCustomerState) {
+      return '';
+    }
+
+    const isSameStateOrder =
+      normalizeStateName(activeCustomerState) ===
+      normalizeStateName(salesTypeConfig.companyState);
+
+    return isSameStateOrder
+      ? salesTypeConfig.sameStateSaleTypeName
+      : salesTypeConfig.interstateSaleTypeName;
+  }, [activeCustomerState, salesTypeConfig]);
 
   const canBrowseProducts = Boolean(selectedCompany) && (!isSalesman || Boolean(customerId));
 
@@ -844,6 +872,7 @@ function OrderPageInner() {
     unitCode: product.unitCode,
     category: product.groupName,
     stock: product.stock,
+    taxRate: product.taxRate,
     isActive: true,
   });
 
@@ -1021,7 +1050,7 @@ function OrderPageInner() {
         voucherSeriesName: voucherSeriesConfig.voucherSeriesName.trim(),
         materialCenterId: activeMaterialCenterId,
         materialCenterName: activeMaterialCenterName,
-        items: items.map(item => ({
+        items: items.map((item) => ({
           productId: item.product.id,
           productName: item.product.name,
           productSku: item.product.sku,
@@ -1029,6 +1058,8 @@ function OrderPageInner() {
           productUnitCode: item.product.unitCode,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          taxAmount: item.taxAmount,
           taxRate: item.taxRate,
         })),
         createdBy: user!.id,
@@ -1576,7 +1607,8 @@ function OrderPageInner() {
                           {formatCurrency(item.unitPrice)} × {item.quantity}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {t.cart.tax} ({item.taxRate}% GST): {formatCurrency(item.taxAmount)}
+                          {pricesIncludeTax ? 'Included tax' : t.cart.tax} ({item.taxRate}% GST):{' '}
+                          {formatCurrency(item.taxAmount)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1604,7 +1636,9 @@ function OrderPageInner() {
                           {formatCurrency(item.totalPrice + item.taxAmount)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatCurrency(item.totalPrice)} + tax
+                          {pricesIncludeTax
+                            ? `${formatCurrency(item.totalPrice)} + included tax`
+                            : `${formatCurrency(item.totalPrice)} + tax`}
                         </p>
                       </div>
                     </div>
@@ -1705,10 +1739,15 @@ function OrderPageInner() {
                       <span className="text-muted-foreground">{t.cart.subtotal}</span>
                       <span>{formatCurrency(subtotal)}</span>
                     </div>
+                    {pricesIncludeTax ? (
+                      <p className="text-xs text-muted-foreground">
+                        Product sale prices currently include tax based on the selected sales type.
+                      </p>
+                    ) : null}
                     {taxBreakdown.map((entry) => (
                       <div key={entry.taxRate} className="flex justify-between text-xs">
                         <span className="text-muted-foreground">
-                          {t.cart.tax} ({entry.taxRate}% GST)
+                          {pricesIncludeTax ? 'Included tax' : t.cart.tax} ({entry.taxRate}% GST)
                         </span>
                         <span>{formatCurrency(entry.taxAmount)}</span>
                       </div>

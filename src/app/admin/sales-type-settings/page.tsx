@@ -30,6 +30,36 @@ import {
   salesTypeConfigService,
 } from '@/versions/v1/services';
 
+function normalizeSaleTypeName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, '');
+}
+
+function isTaxInclusiveSaleTypeName(value: string) {
+  return normalizeSaleTypeName(value).includes('taxincl');
+}
+
+function isTaxExclusiveSaleTypeName(value: string) {
+  return normalizeSaleTypeName(value).includes('itemwise');
+}
+
+function isAllowedSameStateSaleType(value: string) {
+  const normalized = normalizeSaleTypeName(value);
+  return normalized.startsWith('local-') && (
+    isTaxInclusiveSaleTypeName(value) || isTaxExclusiveSaleTypeName(value)
+  );
+}
+
+function isAllowedInterstateSaleType(value: string) {
+  const normalized = normalizeSaleTypeName(value);
+  return normalized.startsWith('central-') && (
+    isTaxInclusiveSaleTypeName(value) || isTaxExclusiveSaleTypeName(value)
+  );
+}
+
+function getTaxModeLabel(value: string) {
+  return isTaxInclusiveSaleTypeName(value) ? 'Tax Include' : 'Tax Exclude';
+}
+
 function buildSalesTypeConfigSignature(config: SalesTypeConfig | null) {
   if (!config) {
     return '';
@@ -108,6 +138,16 @@ export default function AdminSalesTypeSettingsPage() {
       buildSalesTypeConfigSignature(salesTypeConfig) !==
       buildSalesTypeConfigSignature(savedSalesTypeConfig),
     [salesTypeConfig, savedSalesTypeConfig]
+  );
+
+  const sameStateSaleTypes = useMemo(
+    () => saleTypes.filter((saleType) => isAllowedSameStateSaleType(saleType.name)),
+    [saleTypes]
+  );
+
+  const interstateSaleTypes = useMemo(
+    () => saleTypes.filter((saleType) => isAllowedInterstateSaleType(saleType.name)),
+    [saleTypes]
   );
 
   const loadConfiguration = async (companyId: number, financialYear: string) => {
@@ -227,7 +267,7 @@ export default function AdminSalesTypeSettingsPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Sales Type Settings</h1>
             <p className="text-muted-foreground">
-              Map same-state and interstate tax sale types for the selected company.
+              Map same-state and interstate tax modes for the selected company.
             </p>
           </div>
           <div className="flex gap-2">
@@ -270,7 +310,7 @@ export default function AdminSalesTypeSettingsPage() {
               <div>
                 <CardTitle className="text-lg">Tax Rule Mapping</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  These rules are stored per company and financial year.
+                  Only tax-inclusive and tax-exclusive sale types are allowed here.
                 </p>
               </div>
             </div>
@@ -335,15 +375,15 @@ export default function AdminSalesTypeSettingsPage() {
                     <Select
                       value={salesTypeConfig.sameStateSaleTypeId || undefined}
                       onValueChange={(value) => handleSaleTypeSelection('sameState', value)}
-                      disabled={isSaving || saleTypes.length === 0}
+                      disabled={isSaving || sameStateSaleTypes.length === 0}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select sale type for same-state orders" />
+                        <SelectValue placeholder="Select same-state tax mode" />
                       </SelectTrigger>
                       <SelectContent>
-                        {saleTypes.map((saleType) => (
+                        {sameStateSaleTypes.map((saleType) => (
                           <SelectItem key={saleType.id} value={saleType.id}>
-                            {saleType.name}
+                            {getTaxModeLabel(saleType.name)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -355,15 +395,15 @@ export default function AdminSalesTypeSettingsPage() {
                     <Select
                       value={salesTypeConfig.interstateSaleTypeId || undefined}
                       onValueChange={(value) => handleSaleTypeSelection('interstate', value)}
-                      disabled={isSaving || saleTypes.length === 0}
+                      disabled={isSaving || interstateSaleTypes.length === 0}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select sale type for interstate orders" />
+                        <SelectValue placeholder="Select interstate tax mode" />
                       </SelectTrigger>
                       <SelectContent>
-                        {saleTypes.map((saleType) => (
+                        {interstateSaleTypes.map((saleType) => (
                           <SelectItem key={saleType.id} value={saleType.id}>
-                            {saleType.name}
+                            {getTaxModeLabel(saleType.name)}
                           </SelectItem>
                         ))}
                       </SelectContent>

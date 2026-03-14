@@ -136,6 +136,8 @@ export class OrderRepository {
         | 'productUnitCode'
         | 'quantity'
         | 'unitPrice'
+        | 'totalPrice'
+        | 'taxAmount'
       > & { taxRate: number }
     >,
     createdBy: string,

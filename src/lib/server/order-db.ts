@@ -80,6 +80,8 @@ interface CreateOrderParams {
     productUnitCode?: number;
     quantity: number;
     unitPrice: number;
+    totalPrice?: number;
+    taxAmount?: number;
     taxRate: number;
   }>;
 }
@@ -391,9 +393,12 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
   await initializeSchema();
 
   const timestamp = new Date().toISOString();
-  const subtotal = params.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const subtotal = params.items.reduce(
+    (sum, item) => sum + (item.totalPrice ?? item.unitPrice * item.quantity),
+    0
+  );
   const tax = params.items.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity * (item.taxRate / 100),
+    (sum, item) => sum + (item.taxAmount ?? item.unitPrice * item.quantity * (item.taxRate / 100)),
     0
   );
   const total = subtotal + tax;
@@ -468,8 +473,9 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
     const createdOrderId = toNumber(orderIdRows[0]?.id);
 
     for (const item of params.items) {
-      const lineTotal = item.unitPrice * item.quantity;
-      const lineTaxAmount = Number((lineTotal * (item.taxRate / 100)).toFixed(6));
+      const lineTotal = item.totalPrice ?? item.unitPrice * item.quantity;
+      const lineTaxAmount =
+        item.taxAmount ?? Number((lineTotal * (item.taxRate / 100)).toFixed(6));
 
       await tx.$executeRawUnsafe(
         `INSERT INTO order_items (

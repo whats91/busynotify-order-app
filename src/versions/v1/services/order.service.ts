@@ -72,6 +72,8 @@ export class OrderService {
       productUnitCode?: number;
       quantity: number;
       unitPrice: number;
+      totalPrice?: number;
+      taxAmount?: number;
       taxRate: number;
     }>;
     createdBy: string;
@@ -92,8 +94,9 @@ export class OrderService {
         productUnitCode: item.productUnitCode,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        totalPrice: item.unitPrice * item.quantity,
-        taxAmount: item.unitPrice * item.quantity * (item.taxRate / 100),
+        totalPrice: item.totalPrice ?? item.unitPrice * item.quantity,
+        taxAmount:
+          item.taxAmount ?? item.unitPrice * item.quantity * (item.taxRate / 100),
         taxPercentage: item.taxRate,
       }));
 
@@ -114,6 +117,8 @@ export class OrderService {
           ...orderItem,
           productUnit: params.items[index]?.productUnit,
           productUnitCode: params.items[index]?.productUnitCode,
+          totalPrice: params.items[index]?.totalPrice,
+          taxAmount: params.items[index]?.taxAmount,
           taxRate: params.items[index]?.taxRate ?? 18,
         })),
         params.createdBy,

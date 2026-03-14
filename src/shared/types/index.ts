@@ -555,6 +555,7 @@ export interface Product {
   unitCode?: number;
   category: string;
   stock: number;
+  taxRate?: number;
   imageUrl?: string;
   isActive: boolean;
 }

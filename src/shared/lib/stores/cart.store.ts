@@ -22,6 +22,7 @@ interface CartState {
   items: CartItemWithTax[];
   customerId?: string;
   customerName?: string;
+  pricesIncludeTax: boolean;
   
   // Computed values
   totalItems: number;
@@ -37,12 +38,14 @@ interface CartState {
   resetCart: () => void;
   setCustomer: (customerId: string, customerName: string) => void;
   clearCustomer: () => void;
+  setPricesIncludeTax: (pricesIncludeTax: boolean) => void;
 }
 
 interface PersistedCartState {
   items?: CartItemWithTax[];
   customerId?: string;
   customerName?: string;
+  pricesIncludeTax?: boolean;
 }
 
 function calculateTotals(items: CartItemWithTax[]) {
@@ -53,11 +56,33 @@ function calculateTotals(items: CartItemWithTax[]) {
   return { totalItems, subtotal, tax, total };
 }
 
-function calculateItemTaxAmount(totalPrice: number, taxRate: number) {
-  return Number(((totalPrice * taxRate) / 100).toFixed(6));
+function calculateLinePricing(
+  unitPrice: number,
+  quantity: number,
+  taxRate: number,
+  pricesIncludeTax: boolean
+) {
+  const grossTotal = unitPrice * quantity;
+
+  if (pricesIncludeTax && taxRate > 0) {
+    const subtotal = Number((grossTotal / (1 + taxRate / 100)).toFixed(6));
+    const taxAmount = Number((grossTotal - subtotal).toFixed(6));
+    return {
+      totalPrice: subtotal,
+      taxAmount,
+    };
+  }
+
+  return {
+    totalPrice: grossTotal,
+    taxAmount: Number(((grossTotal * taxRate) / 100).toFixed(6)),
+  };
 }
 
-function normalizePersistedItems(items: PersistedCartState['items']): CartItemWithTax[] {
+function normalizePersistedItems(
+  items: PersistedCartState['items'],
+  pricesIncludeTax: boolean
+): CartItemWithTax[] {
   if (!Array.isArray(items)) {
     return [];
   }
@@ -78,15 +103,15 @@ function normalizePersistedItems(items: PersistedCartState['items']): CartItemWi
         : typeof item.product.taxRate === 'number' && item.product.taxRate >= 0
           ? item.product.taxRate
           : 18;
-    const totalPrice = unitPrice * quantity;
+    const linePricing = calculateLinePricing(unitPrice, quantity, taxRate, pricesIncludeTax);
 
     normalizedItems.push({
       ...item,
       quantity,
       unitPrice,
-      totalPrice,
+      totalPrice: linePricing.totalPrice,
       taxRate,
-      taxAmount: calculateItemTaxAmount(totalPrice, taxRate),
+      taxAmount: linePricing.taxAmount,
     });
 
     return normalizedItems;
@@ -94,12 +119,14 @@ function normalizePersistedItems(items: PersistedCartState['items']): CartItemWi
 }
 
 function hydrateCartState(persistedState?: PersistedCartState): PersistedCartState & ReturnType<typeof calculateTotals> {
-  const items = normalizePersistedItems(persistedState?.items);
+  const pricesIncludeTax = persistedState?.pricesIncludeTax === true;
+  const items = normalizePersistedItems(persistedState?.items, pricesIncludeTax);
 
   return {
     items,
     customerId: persistedState?.customerId,
     customerName: persistedState?.customerName,
+    pricesIncludeTax,
     ...calculateTotals(items),
   };
 }
@@ -110,6 +137,7 @@ export const useCartStore = create<CartState>()(
       items: [],
       customerId: undefined,
       customerName: undefined,
+      pricesIncludeTax: false,
       totalItems: 0,
       subtotal: 0,
       tax: 0,
@@ -117,6 +145,7 @@ export const useCartStore = create<CartState>()(
       
       addItem: (product, quantity, taxRate = 18) => {
         const items = get().items;
+        const pricesIncludeTax = get().pricesIncludeTax;
         const existingIndex = items.findIndex(
           (item) => item.product.id === product.id
         );
@@ -128,26 +157,37 @@ export const useCartStore = create<CartState>()(
           newItems = items.map((item, index) => {
             if (index === existingIndex) {
               const newQuantity = item.quantity + quantity;
-              const totalPrice = item.unitPrice * newQuantity;
+              const linePricing = calculateLinePricing(
+                item.unitPrice,
+                newQuantity,
+                item.taxRate,
+                pricesIncludeTax
+              );
               return {
                 ...item,
+                product: {
+                  ...item.product,
+                  ...product,
+                  unitCode: product.unitCode ?? item.product.unitCode,
+                },
                 quantity: newQuantity,
-                totalPrice,
-                taxAmount: calculateItemTaxAmount(totalPrice, item.taxRate),
+                totalPrice: linePricing.totalPrice,
+                taxAmount: linePricing.taxAmount,
               };
             }
             return item;
           });
         } else {
           // Add new item
+          const linePricing = calculateLinePricing(product.price, quantity, taxRate, pricesIncludeTax);
           const newItem: CartItemWithTax = {
             id: `cart_${Date.now()}_${Math.random().toString(36).substring(7)}`,
             product,
             quantity,
             unitPrice: product.price,
-            totalPrice: product.price * quantity,
+            totalPrice: linePricing.totalPrice,
             taxRate,
-            taxAmount: calculateItemTaxAmount(product.price * quantity, taxRate),
+            taxAmount: linePricing.taxAmount,
           };
           newItems = [...items, newItem];
         }
@@ -168,14 +208,20 @@ export const useCartStore = create<CartState>()(
           return;
         }
         
+        const pricesIncludeTax = get().pricesIncludeTax;
         const newItems = get().items.map((item) => {
           if (item.id === itemId) {
-            const totalPrice = item.unitPrice * quantity;
+            const linePricing = calculateLinePricing(
+              item.unitPrice,
+              quantity,
+              item.taxRate,
+              pricesIncludeTax
+            );
             return {
               ...item,
               quantity,
-              totalPrice,
-              taxAmount: calculateItemTaxAmount(totalPrice, item.taxRate),
+              totalPrice: linePricing.totalPrice,
+              taxAmount: linePricing.taxAmount,
             };
           }
           return item;
@@ -200,6 +246,7 @@ export const useCartStore = create<CartState>()(
           items: [],
           customerId: undefined,
           customerName: undefined,
+          pricesIncludeTax: false,
           totalItems: 0,
           subtotal: 0,
           tax: 0,
@@ -214,6 +261,29 @@ export const useCartStore = create<CartState>()(
       clearCustomer: () => {
         set({ customerId: undefined, customerName: undefined });
       },
+
+      setPricesIncludeTax: (pricesIncludeTax) => {
+        const recalculatedItems = get().items.map((item) => {
+          const linePricing = calculateLinePricing(
+            item.unitPrice,
+            item.quantity,
+            item.taxRate,
+            pricesIncludeTax
+          );
+
+          return {
+            ...item,
+            totalPrice: linePricing.totalPrice,
+            taxAmount: linePricing.taxAmount,
+          };
+        });
+
+        set({
+          pricesIncludeTax,
+          items: recalculatedItems,
+          ...calculateTotals(recalculatedItems),
+        });
+      },
     }),
     {
       name: 'busy-notify-cart',
@@ -222,6 +292,7 @@ export const useCartStore = create<CartState>()(
         items: state.items,
         customerId: state.customerId,
         customerName: state.customerName,
+        pricesIncludeTax: state.pricesIncludeTax,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,
