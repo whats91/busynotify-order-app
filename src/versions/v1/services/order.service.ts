@@ -12,6 +12,14 @@
 import type { Order, OrderItem, OrderStatus, OrderFilter } from '../../../shared/types';
 import { orderRepository } from '../repositories/order.repository';
 
+function roundCurrency(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Number(value.toFixed(2));
+}
+
 export class OrderService {
   /**
    * Get all orders
@@ -85,20 +93,27 @@ export class OrderService {
     error?: string;
   }> {
     try {
-      const orderItems: OrderItem[] = params.items.map((item) => ({
-        id: `item_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        productId: item.productId,
-        productName: item.productName,
-        productSku: item.productSku,
-        productUnit: item.productUnit,
-        productUnitCode: item.productUnitCode,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        totalPrice: item.totalPrice ?? item.unitPrice * item.quantity,
-        taxAmount:
-          item.taxAmount ?? item.unitPrice * item.quantity * (item.taxRate / 100),
-        taxPercentage: item.taxRate,
-      }));
+      const orderItems: OrderItem[] = params.items.map((item) => {
+        const rawLineTotal = item.totalPrice ?? item.unitPrice * item.quantity;
+        const totalPrice = roundCurrency(rawLineTotal);
+        const taxAmount = roundCurrency(
+          item.taxAmount ?? rawLineTotal * (item.taxRate / 100)
+        );
+
+        return {
+          id: `item_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+          productId: item.productId,
+          productName: item.productName,
+          productSku: item.productSku,
+          productUnit: item.productUnit,
+          productUnitCode: item.productUnitCode,
+          quantity: item.quantity,
+          unitPrice: roundCurrency(item.unitPrice),
+          totalPrice,
+          taxAmount,
+          taxPercentage: item.taxRate,
+        };
+      });
 
       const order = await orderRepository.create(
         params.companyId,
@@ -117,8 +132,6 @@ export class OrderService {
           ...orderItem,
           productUnit: params.items[index]?.productUnit,
           productUnitCode: params.items[index]?.productUnitCode,
-          totalPrice: params.items[index]?.totalPrice,
-          taxAmount: params.items[index]?.taxAmount,
           taxRate: params.items[index]?.taxRate ?? 18,
         })),
         params.createdBy,

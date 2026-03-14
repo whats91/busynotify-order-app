@@ -109,6 +109,16 @@ function toNumber(value: number | bigint | null | undefined): number {
   return typeof value === 'bigint' ? Number(value) : value;
 }
 
+function roundCurrency(value: number | bigint | null | undefined): number {
+  const numericValue = toNumber(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return 0;
+  }
+
+  return Number(numericValue.toFixed(2));
+}
+
 function mapOrderItems(rows: OrderItemRow[]): OrderItem[] {
   return rows.map((row) => ({
     id: String(row.id),
@@ -118,9 +128,9 @@ function mapOrderItems(rows: OrderItemRow[]): OrderItem[] {
     productUnit: row.product_unit || undefined,
     productUnitCode: row.product_unit_code == null ? undefined : toNumber(row.product_unit_code),
     quantity: toNumber(row.quantity),
-    unitPrice: row.unit_price,
-    totalPrice: row.line_total,
-    taxAmount: row.tax_amount,
+    unitPrice: roundCurrency(row.unit_price),
+    totalPrice: roundCurrency(row.line_total),
+    taxAmount: roundCurrency(row.tax_amount),
     taxPercentage: row.tax_rate,
   }));
 }
@@ -140,9 +150,9 @@ function mapOrder(orderRow: OrderRow, itemRows: OrderItemRow[]): Order {
     materialCenterId: orderRow.material_center_id || undefined,
     materialCenterName: orderRow.material_center_name || undefined,
     items: mapOrderItems(itemRows),
-    subtotal: orderRow.subtotal,
-    tax: orderRow.tax,
-    total: orderRow.total,
+    subtotal: roundCurrency(orderRow.subtotal),
+    tax: roundCurrency(orderRow.tax),
+    total: roundCurrency(orderRow.total),
     status: orderRow.status,
     createdAt: orderRow.created_at,
     updatedAt: orderRow.updated_at,
@@ -264,7 +274,7 @@ async function initializeSchema() {
       await ensureColumnExists('order_items', 'product_unit_code', 'INTEGER');
       await db.$executeRawUnsafe(
         `UPDATE order_items
-         SET tax_amount = ROUND(line_total * (tax_rate / 100.0), 6)
+         SET tax_amount = ROUND(line_total * (tax_rate / 100.0), 2)
          WHERE tax_rate > 0 AND (tax_amount IS NULL OR tax_amount = 0)`
       );
       await db.$executeRawUnsafe(
@@ -288,7 +298,7 @@ async function loadOrderItems(
   const rows = await executor.$queryRawUnsafe<OrderItemRow[]>(
     `SELECT id, order_id, product_id, product_name, product_sku, product_unit, product_unit_code,
             quantity, unit_price, tax_rate,
-            COALESCE(tax_amount, ROUND(line_total * (tax_rate / 100.0), 6)) AS tax_amount,
+            COALESCE(tax_amount, ROUND(line_total * (tax_rate / 100.0), 2)) AS tax_amount,
             line_total, cart_value
      FROM order_items
      WHERE order_id IN (${placeholders})
@@ -394,15 +404,28 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
   await initializeSchema();
 
   const timestamp = new Date().toISOString();
-  const subtotal = params.items.reduce(
-    (sum, item) => sum + (item.totalPrice ?? item.unitPrice * item.quantity),
-    0
+  const normalizedItems = params.items.map((item) => {
+    const unitPrice = roundCurrency(item.unitPrice);
+    const lineTotal = roundCurrency(item.totalPrice ?? item.unitPrice * item.quantity);
+    const lineTaxAmount = roundCurrency(
+      item.taxAmount ?? lineTotal * (item.taxRate / 100)
+    );
+
+    return {
+      ...item,
+      unitPrice,
+      lineTotal,
+      lineTaxAmount,
+      cartValue: lineTotal,
+    };
+  });
+  const subtotal = roundCurrency(
+    normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0)
   );
-  const tax = params.items.reduce(
-    (sum, item) => sum + (item.taxAmount ?? item.unitPrice * item.quantity * (item.taxRate / 100)),
-    0
+  const tax = roundCurrency(
+    normalizedItems.reduce((sum, item) => sum + item.lineTaxAmount, 0)
   );
-  const total = subtotal + tax;
+  const total = roundCurrency(subtotal + tax);
   const cartValue = total;
   const salesmanId = params.createdByRole === 'salesman' ? params.createdBy : null;
 
@@ -478,11 +501,7 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
     );
     const createdOrderId = toNumber(orderIdRows[0]?.id);
 
-    for (const item of params.items) {
-      const lineTotal = item.totalPrice ?? item.unitPrice * item.quantity;
-      const lineTaxAmount =
-        item.taxAmount ?? Number((lineTotal * (item.taxRate / 100)).toFixed(6));
-
+    for (const item of normalizedItems) {
       await tx.$executeRawUnsafe(
         `INSERT INTO order_items (
           order_id,
@@ -507,9 +526,9 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         item.quantity,
         item.unitPrice,
         item.taxRate,
-        lineTaxAmount,
-        lineTotal,
-        lineTotal
+        item.lineTaxAmount,
+        item.lineTotal,
+        item.cartValue
       );
     }
 
