@@ -662,6 +662,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   unitPriceExcludingTax: number;
+  subtotal: number;
   totalPrice: number;
   taxAmount: number;
   taxPercentage: number;

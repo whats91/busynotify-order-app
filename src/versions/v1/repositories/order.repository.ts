@@ -136,6 +136,7 @@ export class OrderRepository {
         | 'productUnitCode'
         | 'quantity'
         | 'unitPrice'
+        | 'subtotal'
         | 'totalPrice'
         | 'taxAmount'
       > & { taxRate: number }

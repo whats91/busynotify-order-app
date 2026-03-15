@@ -185,7 +185,7 @@ export default function OrdersPage() {
     for (const item of selectedOrder.items) {
       const taxRate = item.taxPercentage ?? 0;
       const taxAmount =
-        item.taxAmount ?? Number((item.totalPrice * (taxRate / 100)).toFixed(6));
+        item.taxAmount ?? Number((item.subtotal * (taxRate / 100)).toFixed(6));
       breakdown.set(taxRate, (breakdown.get(taxRate) ?? 0) + taxAmount);
     }
 
@@ -761,10 +761,10 @@ export default function OrdersPage() {
                             </div>
                             <div className="text-right">
                               <p className="font-medium">
-                                {formatCurrency(item.totalPrice + item.taxAmount)}
+                                {formatCurrency(item.totalPrice)}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {formatCurrency(item.totalPrice)} + tax
+                                {formatCurrency(item.subtotal)} + tax
                               </p>
                             </div>
                           </div>

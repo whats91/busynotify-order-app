@@ -81,6 +81,7 @@ interface CreateOrderParams {
     productUnitCode?: number;
     quantity: number;
     unitPrice: number;
+    subtotal?: number;
     totalPrice?: number;
     taxAmount?: number;
     taxRate: number;
@@ -144,6 +145,8 @@ function mapOrderItems(rows: OrderItemRow[], orderRow: OrderRow): OrderItem[] {
     const taxPercentage = roundCurrency(row.tax_rate);
     const unitPriceExcludingTax =
       quantity > 0 ? roundCurrency(row.line_total / quantity) : roundCurrency(row.unit_price);
+    const subtotal = roundCurrency(row.line_total);
+    const totalPrice = roundCurrency(row.line_total + row.tax_amount);
 
     if (sameState === true) {
       const cgstPercentage = roundCurrency(taxPercentage / 2);
@@ -162,7 +165,8 @@ function mapOrderItems(rows: OrderItemRow[], orderRow: OrderRow): OrderItem[] {
         quantity,
         unitPrice: roundCurrency(row.unit_price),
         unitPriceExcludingTax,
-        totalPrice: roundCurrency(row.line_total),
+        subtotal,
+        totalPrice,
         taxAmount,
         taxPercentage,
         cgstPercentage,
@@ -186,7 +190,8 @@ function mapOrderItems(rows: OrderItemRow[], orderRow: OrderRow): OrderItem[] {
         quantity,
         unitPrice: roundCurrency(row.unit_price),
         unitPriceExcludingTax,
-        totalPrice: roundCurrency(row.line_total),
+        subtotal,
+        totalPrice,
         taxAmount,
         taxPercentage,
         cgstPercentage: null,
@@ -209,7 +214,8 @@ function mapOrderItems(rows: OrderItemRow[], orderRow: OrderRow): OrderItem[] {
       quantity,
       unitPrice: roundCurrency(row.unit_price),
       unitPriceExcludingTax,
-      totalPrice: roundCurrency(row.line_total),
+      subtotal,
+      totalPrice,
       taxAmount,
       taxPercentage,
       cgstPercentage: null,
@@ -493,21 +499,23 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
   const timestamp = new Date().toISOString();
   const normalizedItems = params.items.map((item) => {
     const unitPrice = roundCurrency(item.unitPrice);
-    const lineTotal = roundCurrency(item.totalPrice ?? item.unitPrice * item.quantity);
+    const lineSubtotal = roundCurrency(item.subtotal ?? item.totalPrice ?? item.unitPrice * item.quantity);
     const lineTaxAmount = roundCurrency(
-      item.taxAmount ?? lineTotal * (item.taxRate / 100)
+      item.taxAmount ?? lineSubtotal * (item.taxRate / 100)
     );
+    const lineTotal = roundCurrency(lineSubtotal + lineTaxAmount);
 
     return {
       ...item,
       unitPrice,
+      lineSubtotal,
       lineTotal,
       lineTaxAmount,
       cartValue: lineTotal,
     };
   });
   const subtotal = roundCurrency(
-    normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0)
+    normalizedItems.reduce((sum, item) => sum + item.lineSubtotal, 0)
   );
   const tax = roundCurrency(
     normalizedItems.reduce((sum, item) => sum + item.lineTaxAmount, 0)
@@ -614,7 +622,7 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         item.unitPrice,
         item.taxRate,
         item.lineTaxAmount,
-        item.lineTotal,
+        item.lineSubtotal,
         item.cartValue
       );
     }

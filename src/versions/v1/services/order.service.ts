@@ -85,6 +85,7 @@ export class OrderService {
       productUnitCode?: number;
       quantity: number;
       unitPrice: number;
+      subtotal?: number;
       totalPrice?: number;
       taxAmount?: number;
       taxRate: number;
@@ -104,13 +105,14 @@ export class OrderService {
         customerState && companyState ? customerState === companyState : null;
 
       const orderItems: OrderItem[] = params.items.map((item) => {
-        const rawLineTotal = item.totalPrice ?? item.unitPrice * item.quantity;
-        const totalPrice = roundCurrency(rawLineTotal);
+        const rawSubtotal = item.subtotal ?? item.totalPrice ?? item.unitPrice * item.quantity;
+        const subtotal = roundCurrency(rawSubtotal);
         const taxAmount = roundCurrency(
-          item.taxAmount ?? rawLineTotal * (item.taxRate / 100)
+          item.taxAmount ?? rawSubtotal * (item.taxRate / 100)
         );
+        const totalPrice = roundCurrency(subtotal + taxAmount);
         const unitPriceExcludingTax =
-          item.quantity > 0 ? roundCurrency(totalPrice / item.quantity) : roundCurrency(item.unitPrice);
+          item.quantity > 0 ? roundCurrency(subtotal / item.quantity) : roundCurrency(item.unitPrice);
         const taxPercentage = roundCurrency(item.taxRate);
         const cgstPercentage = sameState === true ? roundCurrency(taxPercentage / 2) : null;
         const cgstAmount = sameState === true ? roundCurrency(taxAmount / 2) : null;
@@ -133,6 +135,7 @@ export class OrderService {
           quantity: item.quantity,
           unitPrice: roundCurrency(item.unitPrice),
           unitPriceExcludingTax,
+          subtotal,
           totalPrice,
           taxAmount,
           taxPercentage,
@@ -162,6 +165,7 @@ export class OrderService {
           ...orderItem,
           productUnit: params.items[index]?.productUnit,
           productUnitCode: params.items[index]?.productUnitCode,
+          subtotal: orderItem.subtotal,
           taxRate: params.items[index]?.taxRate ?? 18,
         })),
         params.createdBy,

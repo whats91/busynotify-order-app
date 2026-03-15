@@ -1058,6 +1058,7 @@ function OrderPageInner() {
           productUnitCode: item.product.unitCode,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          subtotal: item.totalPrice,
           totalPrice: item.totalPrice,
           taxAmount: item.taxAmount,
           taxRate: item.taxRate,

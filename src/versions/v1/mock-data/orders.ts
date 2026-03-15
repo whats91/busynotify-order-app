@@ -19,6 +19,7 @@ function withDefaultTax(
     | 'taxAmount'
     | 'taxPercentage'
     | 'unitPriceExcludingTax'
+    | 'subtotal'
     | 'cgstPercentage'
     | 'cgstAmount'
     | 'sgstPercentage'
@@ -32,6 +33,8 @@ function withDefaultTax(
   return {
     ...item,
     unitPriceExcludingTax: item.unitPrice,
+    subtotal: item.totalPrice,
+    totalPrice: item.totalPrice + taxAmount,
     taxAmount,
     taxPercentage: DEFAULT_ORDER_ITEM_TAX_PERCENTAGE,
     cgstPercentage: null,
@@ -233,8 +236,8 @@ export function createOrder(
   createdByRole: 'customer' | 'salesman' | 'admin',
   notes?: string
 ): Order {
-  const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
-  const tax = subtotal * 0.18; // 18% GST
+  const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+  const tax = items.reduce((sum, item) => sum + item.taxAmount, 0);
   const total = subtotal + tax;
   
   const newOrder: Order = {

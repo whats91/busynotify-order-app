@@ -45,6 +45,7 @@ interface CreateOrderBody {
     productUnitCode?: number;
     quantity?: number;
     unitPrice?: number;
+    subtotal?: number;
     totalPrice?: number;
     taxAmount?: number;
     taxRate?: number;
@@ -227,6 +228,7 @@ export async function POST(request: NextRequest) {
         productUnitCode: item.productUnitCode,
         quantity: item.quantity as number,
         unitPrice: item.unitPrice as number,
+        subtotal: item.subtotal,
         totalPrice: item.totalPrice,
         taxAmount: item.taxAmount,
         taxRate: item.taxRate ?? 18,
