@@ -20,6 +20,11 @@ function roundCurrency(value: number): number {
   return Number(value.toFixed(2));
 }
 
+function normalizeState(value: string | undefined) {
+  const normalizedValue = value?.trim().toLowerCase();
+  return normalizedValue ? normalizedValue.replace(/\s+/g, ' ') : null;
+}
+
 export class OrderService {
   /**
    * Get all orders
@@ -93,12 +98,30 @@ export class OrderService {
     error?: string;
   }> {
     try {
+      const customerState = normalizeState(params.customerState);
+      const companyState = normalizeState(params.companyState);
+      const sameState =
+        customerState && companyState ? customerState === companyState : null;
+
       const orderItems: OrderItem[] = params.items.map((item) => {
         const rawLineTotal = item.totalPrice ?? item.unitPrice * item.quantity;
         const totalPrice = roundCurrency(rawLineTotal);
         const taxAmount = roundCurrency(
           item.taxAmount ?? rawLineTotal * (item.taxRate / 100)
         );
+        const unitPriceExcludingTax =
+          item.quantity > 0 ? roundCurrency(totalPrice / item.quantity) : roundCurrency(item.unitPrice);
+        const taxPercentage = roundCurrency(item.taxRate);
+        const cgstPercentage = sameState === true ? roundCurrency(taxPercentage / 2) : null;
+        const cgstAmount = sameState === true ? roundCurrency(taxAmount / 2) : null;
+        const sgstPercentage =
+          sameState === true && cgstPercentage != null
+            ? roundCurrency(taxPercentage - cgstPercentage)
+            : null;
+        const sgstAmount =
+          sameState === true && cgstAmount != null
+            ? roundCurrency(taxAmount - cgstAmount)
+            : null;
 
         return {
           id: `item_${Date.now()}_${Math.random().toString(36).substring(7)}`,
@@ -109,9 +132,16 @@ export class OrderService {
           productUnitCode: item.productUnitCode,
           quantity: item.quantity,
           unitPrice: roundCurrency(item.unitPrice),
+          unitPriceExcludingTax,
           totalPrice,
           taxAmount,
-          taxPercentage: item.taxRate,
+          taxPercentage,
+          cgstPercentage,
+          cgstAmount,
+          sgstPercentage,
+          sgstAmount,
+          igstPercentage: sameState === false ? taxPercentage : null,
+          igstAmount: sameState === false ? taxAmount : null,
         };
       });
 

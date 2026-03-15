@@ -661,9 +661,16 @@ export interface OrderItem {
   productUnitCode?: number;
   quantity: number;
   unitPrice: number;
+  unitPriceExcludingTax: number;
   totalPrice: number;
   taxAmount: number;
   taxPercentage: number;
+  cgstPercentage: number | null;
+  cgstAmount: number | null;
+  sgstPercentage: number | null;
+  sgstAmount: number | null;
+  igstPercentage: number | null;
+  igstAmount: number | null;
 }
 
 export interface Order {

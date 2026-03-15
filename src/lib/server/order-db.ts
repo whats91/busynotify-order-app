@@ -119,20 +119,107 @@ function roundCurrency(value: number | bigint | null | undefined): number {
   return Number(numericValue.toFixed(2));
 }
 
-function mapOrderItems(rows: OrderItemRow[]): OrderItem[] {
-  return rows.map((row) => ({
-    id: String(row.id),
-    productId: row.product_id,
-    productName: row.product_name,
-    productSku: row.product_sku,
-    productUnit: row.product_unit || undefined,
-    productUnitCode: row.product_unit_code == null ? undefined : toNumber(row.product_unit_code),
-    quantity: toNumber(row.quantity),
-    unitPrice: roundCurrency(row.unit_price),
-    totalPrice: roundCurrency(row.line_total),
-    taxAmount: roundCurrency(row.tax_amount),
-    taxPercentage: row.tax_rate,
-  }));
+function normalizeState(value: string | null | undefined) {
+  const normalizedValue = value?.trim().toLowerCase();
+  return normalizedValue ? normalizedValue.replace(/\s+/g, ' ') : null;
+}
+
+function resolveSameState(orderRow: OrderRow): boolean | null {
+  const customerState = normalizeState(orderRow.customer_state);
+  const companyState = normalizeState(orderRow.company_state);
+
+  if (!customerState || !companyState) {
+    return null;
+  }
+
+  return customerState === companyState;
+}
+
+function mapOrderItems(rows: OrderItemRow[], orderRow: OrderRow): OrderItem[] {
+  const sameState = resolveSameState(orderRow);
+
+  return rows.map((row) => {
+    const quantity = toNumber(row.quantity);
+    const taxAmount = roundCurrency(row.tax_amount);
+    const taxPercentage = roundCurrency(row.tax_rate);
+    const unitPriceExcludingTax =
+      quantity > 0 ? roundCurrency(row.line_total / quantity) : roundCurrency(row.unit_price);
+
+    if (sameState === true) {
+      const cgstPercentage = roundCurrency(taxPercentage / 2);
+      const sgstPercentage = roundCurrency(taxPercentage - cgstPercentage);
+      const cgstAmount = roundCurrency(taxAmount / 2);
+      const sgstAmount = roundCurrency(taxAmount - cgstAmount);
+
+      return {
+        id: String(row.id),
+        productId: row.product_id,
+        productName: row.product_name,
+        productSku: row.product_sku,
+        productUnit: row.product_unit || undefined,
+        productUnitCode:
+          row.product_unit_code == null ? undefined : toNumber(row.product_unit_code),
+        quantity,
+        unitPrice: roundCurrency(row.unit_price),
+        unitPriceExcludingTax,
+        totalPrice: roundCurrency(row.line_total),
+        taxAmount,
+        taxPercentage,
+        cgstPercentage,
+        cgstAmount,
+        sgstPercentage,
+        sgstAmount,
+        igstPercentage: null,
+        igstAmount: null,
+      };
+    }
+
+    if (sameState === false) {
+      return {
+        id: String(row.id),
+        productId: row.product_id,
+        productName: row.product_name,
+        productSku: row.product_sku,
+        productUnit: row.product_unit || undefined,
+        productUnitCode:
+          row.product_unit_code == null ? undefined : toNumber(row.product_unit_code),
+        quantity,
+        unitPrice: roundCurrency(row.unit_price),
+        unitPriceExcludingTax,
+        totalPrice: roundCurrency(row.line_total),
+        taxAmount,
+        taxPercentage,
+        cgstPercentage: null,
+        cgstAmount: null,
+        sgstPercentage: null,
+        sgstAmount: null,
+        igstPercentage: taxPercentage,
+        igstAmount: taxAmount,
+      };
+    }
+
+    return {
+      id: String(row.id),
+      productId: row.product_id,
+      productName: row.product_name,
+      productSku: row.product_sku,
+      productUnit: row.product_unit || undefined,
+      productUnitCode:
+        row.product_unit_code == null ? undefined : toNumber(row.product_unit_code),
+      quantity,
+      unitPrice: roundCurrency(row.unit_price),
+      unitPriceExcludingTax,
+      totalPrice: roundCurrency(row.line_total),
+      taxAmount,
+      taxPercentage,
+      cgstPercentage: null,
+      cgstAmount: null,
+      sgstPercentage: null,
+      sgstAmount: null,
+      igstPercentage: null,
+      igstAmount: null,
+    };
+  });
 }
 
 function mapOrder(orderRow: OrderRow, itemRows: OrderItemRow[]): Order {
@@ -149,7 +236,7 @@ function mapOrder(orderRow: OrderRow, itemRows: OrderItemRow[]): Order {
     voucherSeriesName: orderRow.voucher_series_name || undefined,
     materialCenterId: orderRow.material_center_id || undefined,
     materialCenterName: orderRow.material_center_name || undefined,
-    items: mapOrderItems(itemRows),
+    items: mapOrderItems(itemRows, orderRow),
     subtotal: roundCurrency(orderRow.subtotal),
     tax: roundCurrency(orderRow.tax),
     total: roundCurrency(orderRow.total),

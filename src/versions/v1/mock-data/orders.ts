@@ -13,11 +13,33 @@ import type { Order, OrderItem, OrderSummary, OrderStatus } from '../../../share
 
 const DEFAULT_ORDER_ITEM_TAX_PERCENTAGE = 18;
 
-function withDefaultTax(item: Omit<OrderItem, 'taxAmount' | 'taxPercentage'>): OrderItem {
+function withDefaultTax(
+  item: Omit<
+    OrderItem,
+    | 'taxAmount'
+    | 'taxPercentage'
+    | 'unitPriceExcludingTax'
+    | 'cgstPercentage'
+    | 'cgstAmount'
+    | 'sgstPercentage'
+    | 'sgstAmount'
+    | 'igstPercentage'
+    | 'igstAmount'
+  >
+): OrderItem {
+  const taxAmount = item.totalPrice * (DEFAULT_ORDER_ITEM_TAX_PERCENTAGE / 100);
+
   return {
     ...item,
-    taxAmount: item.totalPrice * (DEFAULT_ORDER_ITEM_TAX_PERCENTAGE / 100),
+    unitPriceExcludingTax: item.unitPrice,
+    taxAmount,
     taxPercentage: DEFAULT_ORDER_ITEM_TAX_PERCENTAGE,
+    cgstPercentage: null,
+    cgstAmount: null,
+    sgstPercentage: null,
+    sgstAmount: null,
+    igstPercentage: DEFAULT_ORDER_ITEM_TAX_PERCENTAGE,
+    igstAmount: taxAmount,
   };
 }
 
