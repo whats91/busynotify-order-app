@@ -22,11 +22,11 @@ export async function triggerSaleOrderSync({
   const refreshUrl =
     process.env.BUSYNOTIFY_REFRESH_API_URL?.trim() || DEFAULT_REFRESH_URL;
   const bearerToken = process.env.BUSYNOTIFY_REFRESH_BEARER_TOKEN?.trim();
-  const authToken = process.env.BUSYNOTIFY_REFRESH_AUTH_TOKEN?.trim();
+  const authToken = process.env.API_AUTH_TOKEN?.trim();
 
   if (!authToken) {
     console.warn(
-      'BusyNotify refresh skipped: BUSYNOTIFY_REFRESH_AUTH_TOKEN is not configured.',
+      'BusyNotify refresh skipped: API_AUTH_TOKEN is not configured.',
       { orderId, orderNumber }
     );
     return;
