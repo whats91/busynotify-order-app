@@ -16,6 +16,7 @@ import {
   createStoredOrder,
   listStoredOrders,
 } from '@/lib/server/order-db';
+import { triggerSaleOrderSync } from '@/lib/server/busynotify-refresh';
 import { ORDER_STATUSES } from '@/shared/types';
 import type { OrderStatus } from '@/shared/types';
 
@@ -242,6 +243,18 @@ export async function POST(request: NextRequest) {
         taxRate: item.taxRate ?? 18,
       })),
     });
+
+    try {
+      await triggerSaleOrderSync({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+      });
+    } catch (error) {
+      console.error('BusyNotify sale-order refresh failed:', error, {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+      });
+    }
 
     return NextResponse.json({
       success: true,
