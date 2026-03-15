@@ -100,6 +100,10 @@ export interface ApiCustomer {
   opening_balance: number;
   balance: number;
   closing_balance: number;
+  salesman_id?: number | null;
+  salesman_name?: string | null;
+  salesman_mobile_number?: string | null;
+  salesman_whatsapp_number?: string | null;
 }
 
 export interface Customer {
@@ -116,6 +120,10 @@ export interface Customer {
   gstNumber?: string;
   creditLimit?: number;
   outstandingBalance?: number;
+  salesmanId?: string;
+  salesmanName?: string;
+  salesmanMobileNumber?: string;
+  salesmanWhatsappNumber?: string;
 }
 
 export interface CustomerSummary {
@@ -679,6 +687,10 @@ export interface Order {
   orderNumber: string;
   customerId: string;
   customerName: string;
+  salesmanId?: string;
+  salesmanName?: string;
+  salesmanMobileNumber?: string;
+  salesmanWhatsappNumber?: string;
   customerState?: string;
   companyState?: string;
   saleTypeId?: string;

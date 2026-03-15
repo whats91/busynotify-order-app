@@ -69,6 +69,10 @@ export class OrderService {
     financialYear?: string;
     customerId: string;
     customerName: string;
+    customerSalesmanId?: string;
+    customerSalesmanName?: string;
+    customerSalesmanMobileNumber?: string;
+    customerSalesmanWhatsappNumber?: string;
     customerState: string;
     companyState: string;
     saleTypeId: string;
@@ -153,6 +157,10 @@ export class OrderService {
         params.financialYear,
         params.customerId,
         params.customerName,
+        params.customerSalesmanId,
+        params.customerSalesmanName,
+        params.customerSalesmanMobileNumber,
+        params.customerSalesmanWhatsappNumber,
         params.customerState,
         params.companyState,
         params.saleTypeId,

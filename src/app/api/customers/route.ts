@@ -129,6 +129,11 @@ function mapCustomer(customer: Partial<ApiCustomer> & Record<string, unknown>): 
     groupName: toText(customer.group_name) || undefined,
     gstNumber: toText(customer.gst_number) || undefined,
     outstandingBalance: hasClosingBalance ? closingBalance : balance,
+    salesmanId: toText(customer.salesman_id) || undefined,
+    salesmanName: toText(customer.salesman_name) || undefined,
+    salesmanMobileNumber: normalizePhone(customer.salesman_mobile_number) || undefined,
+    salesmanWhatsappNumber:
+      normalizePhone(customer.salesman_whatsapp_number) || undefined,
   };
 }
 

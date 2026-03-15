@@ -10,7 +10,7 @@ import 'server-only';
 import type { PrismaClient } from '@prisma/client';
 import { db } from '@/lib/db';
 import { reserveNextOrderNumber } from '@/lib/server/order-number-config-db';
-import type { Order, OrderItem, OrderStatus } from '@/shared/types';
+import type { ApiCustomer, Order, OrderItem, OrderStatus } from '@/shared/types';
 
 interface OrderRow {
   id: number | bigint;
@@ -20,6 +20,10 @@ interface OrderRow {
   product_id: string | null;
   customer_id: string;
   customer_name: string;
+  customer_salesman_id: string | null;
+  customer_salesman_name: string | null;
+  customer_salesman_mobile_number: string | null;
+  customer_salesman_whatsapp_number: string | null;
   customer_state: string | null;
   company_state: string | null;
   sale_type_id: string | null;
@@ -62,6 +66,10 @@ interface CreateOrderParams {
   financialYear?: string;
   customerId: string;
   customerName: string;
+  customerSalesmanId?: string;
+  customerSalesmanName?: string;
+  customerSalesmanMobileNumber?: string;
+  customerSalesmanWhatsappNumber?: string;
   customerState?: string;
   companyState?: string;
   saleTypeId?: string;
@@ -98,6 +106,19 @@ interface OrderQueryOptions {
 
 type SqlExecutor = Pick<PrismaClient, '$executeRawUnsafe' | '$queryRawUnsafe'>;
 
+interface ExternalCustomerApiResponse {
+  success?: boolean;
+  error?: string;
+  data?: Array<Partial<ApiCustomer> & Record<string, unknown>>;
+}
+
+interface OrderSalesmanSnapshot {
+  salesmanId?: string;
+  salesmanName?: string;
+  salesmanMobileNumber?: string;
+  salesmanWhatsappNumber?: string;
+}
+
 declare global {
   var busyNotifyOrderDbInitialized: Promise<void> | undefined;
 }
@@ -120,6 +141,35 @@ function roundCurrency(value: number | bigint | null | undefined): number {
   return Number(numericValue.toFixed(2));
 }
 
+function toText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  return String(value).trim();
+}
+
+function normalizePhone(value: unknown): string {
+  return toText(value)
+    .replace(/\s+/g, ' ')
+    .split(',')
+    .map((segment) => segment.trim())
+    .find(Boolean)
+    ?.replace(/[^\d+]/g, '') || '';
+}
+
+function parseJsonSafely<T>(value: string): T | null {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeState(value: string | null | undefined) {
   const normalizedValue = value?.trim().toLowerCase();
   return normalizedValue ? normalizedValue.replace(/\s+/g, ' ') : null;
@@ -134,6 +184,108 @@ function resolveSameState(orderRow: OrderRow): boolean | null {
   }
 
   return customerState === companyState;
+}
+
+function hasStoredSalesmanSnapshot(orderRow: OrderRow) {
+  return Boolean(
+    orderRow.customer_salesman_id ||
+      orderRow.customer_salesman_name ||
+      orderRow.customer_salesman_mobile_number ||
+      orderRow.customer_salesman_whatsapp_number
+  );
+}
+
+function buildSalesmanSnapshot(customer: Partial<ApiCustomer> & Record<string, unknown>): OrderSalesmanSnapshot {
+  return {
+    salesmanId: toText(customer.salesman_id) || undefined,
+    salesmanName: toText(customer.salesman_name) || undefined,
+    salesmanMobileNumber: normalizePhone(customer.salesman_mobile_number) || undefined,
+    salesmanWhatsappNumber: normalizePhone(customer.salesman_whatsapp_number) || undefined,
+  };
+}
+
+async function fetchSalesmanSnapshotMap(companyId: number, financialYear: string) {
+  const apiBaseUrl = process.env.API_BASE_URL;
+  const authToken = process.env.API_AUTH_TOKEN;
+
+  if (!apiBaseUrl || !authToken) {
+    return new Map<string, OrderSalesmanSnapshot>();
+  }
+
+  try {
+    const response = await fetch(`${apiBaseUrl}/customers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        authToken,
+        companyId,
+        financialYear,
+      }),
+      cache: 'no-store',
+    });
+
+    const rawResponse = await response.text();
+    const payload = parseJsonSafely<ExternalCustomerApiResponse>(rawResponse);
+
+    if (!response.ok || payload?.success !== true || !Array.isArray(payload?.data)) {
+      return new Map<string, OrderSalesmanSnapshot>();
+    }
+
+    return payload.data.reduce((snapshotMap, customer) => {
+      const customerId = toText(customer.customer_id);
+
+      if (!customerId) {
+        return snapshotMap;
+      }
+
+      snapshotMap.set(customerId, buildSalesmanSnapshot(customer));
+      return snapshotMap;
+    }, new Map<string, OrderSalesmanSnapshot>());
+  } catch {
+    return new Map<string, OrderSalesmanSnapshot>();
+  }
+}
+
+async function buildSalesmanSnapshotOverrides(orderRows: OrderRow[]) {
+  const ordersNeedingFallback = orderRows.filter(
+    (orderRow) =>
+      !hasStoredSalesmanSnapshot(orderRow) &&
+      orderRow.company_id != null &&
+      orderRow.financial_year?.trim()
+  );
+
+  if (ordersNeedingFallback.length === 0) {
+    return new Map<string, OrderSalesmanSnapshot>();
+  }
+
+  const rowsByCompany = ordersNeedingFallback.reduce((groups, orderRow) => {
+    const companyId = toNumber(orderRow.company_id);
+    const financialYear = orderRow.financial_year?.trim() || '';
+    const key = `${companyId}:${financialYear}`;
+    const group = groups.get(key) ?? { companyId, financialYear, rows: [] as OrderRow[] };
+    group.rows.push(orderRow);
+    groups.set(key, group);
+    return groups;
+  }, new Map<string, { companyId: number; financialYear: string; rows: OrderRow[] }>());
+
+  const snapshotEntries = await Promise.all(
+    Array.from(rowsByCompany.values()).map(async ({ companyId, financialYear, rows }) => {
+      const customerSnapshots = await fetchSalesmanSnapshotMap(companyId, financialYear);
+
+      return rows.map<[string, OrderSalesmanSnapshot]>((orderRow) => [
+        String(orderRow.id),
+        customerSnapshots.get(orderRow.customer_id) ?? {},
+      ]);
+    })
+  );
+
+  return snapshotEntries.flat().reduce((snapshotMap, [orderId, snapshot]) => {
+    snapshotMap.set(orderId, snapshot);
+    return snapshotMap;
+  }, new Map<string, OrderSalesmanSnapshot>());
 }
 
 function mapOrderItems(rows: OrderItemRow[], orderRow: OrderRow): OrderItem[] {
@@ -228,12 +380,23 @@ function mapOrderItems(rows: OrderItemRow[], orderRow: OrderRow): OrderItem[] {
   });
 }
 
-function mapOrder(orderRow: OrderRow, itemRows: OrderItemRow[]): Order {
+function mapOrder(
+  orderRow: OrderRow,
+  itemRows: OrderItemRow[],
+  fallbackSalesmanSnapshot?: OrderSalesmanSnapshot
+): Order {
   return {
     id: String(orderRow.id),
     orderNumber: orderRow.order_number,
     customerId: orderRow.customer_id,
     customerName: orderRow.customer_name,
+    salesmanId: orderRow.customer_salesman_id || fallbackSalesmanSnapshot?.salesmanId,
+    salesmanName: orderRow.customer_salesman_name || fallbackSalesmanSnapshot?.salesmanName,
+    salesmanMobileNumber:
+      orderRow.customer_salesman_mobile_number || fallbackSalesmanSnapshot?.salesmanMobileNumber,
+    salesmanWhatsappNumber:
+      orderRow.customer_salesman_whatsapp_number ||
+      fallbackSalesmanSnapshot?.salesmanWhatsappNumber,
     customerState: orderRow.customer_state || undefined,
     companyState: orderRow.company_state || undefined,
     saleTypeId: orderRow.sale_type_id || undefined,
@@ -293,6 +456,10 @@ async function initializeSchema() {
           product_id TEXT,
           customer_id TEXT NOT NULL,
           customer_name TEXT NOT NULL,
+          customer_salesman_id TEXT,
+          customer_salesman_name TEXT,
+          customer_salesman_mobile_number TEXT,
+          customer_salesman_whatsapp_number TEXT,
           customer_state TEXT,
           company_state TEXT,
           sale_type_id TEXT,
@@ -354,6 +521,10 @@ async function initializeSchema() {
         'CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id)'
       );
       await ensureColumnExists('orders', 'product_id', 'TEXT');
+      await ensureColumnExists('orders', 'customer_salesman_id', 'TEXT');
+      await ensureColumnExists('orders', 'customer_salesman_name', 'TEXT');
+      await ensureColumnExists('orders', 'customer_salesman_mobile_number', 'TEXT');
+      await ensureColumnExists('orders', 'customer_salesman_whatsapp_number', 'TEXT');
       await ensureColumnExists('orders', 'customer_state', 'TEXT');
       await ensureColumnExists('orders', 'company_state', 'TEXT');
       await ensureColumnExists('orders', 'sale_type_id', 'TEXT');
@@ -440,7 +611,7 @@ export async function listStoredOrders(filters: OrderQueryOptions = {}): Promise
 
   const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
   const orderRows = await db.$queryRawUnsafe<OrderRow[]>(
-    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_state, company_state, sale_type_id, sale_type_name, voucher_series_id, voucher_series_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
+    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_salesman_id, customer_salesman_name, customer_salesman_mobile_number, customer_salesman_whatsapp_number, customer_state, company_state, sale_type_id, sale_type_name, voucher_series_id, voucher_series_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
      FROM orders
      ${whereSql}
      ORDER BY datetime(created_at) DESC, id DESC`,
@@ -451,8 +622,15 @@ export async function listStoredOrders(filters: OrderQueryOptions = {}): Promise
     db,
     orderRows.map((row) => toNumber(row.id))
   );
+  const salesmanSnapshotOverrides = await buildSalesmanSnapshotOverrides(orderRows);
 
-  return orderRows.map((row) => mapOrder(row, itemsByOrderId.get(toNumber(row.id)) ?? []));
+  return orderRows.map((row) =>
+    mapOrder(
+      row,
+      itemsByOrderId.get(toNumber(row.id)) ?? [],
+      salesmanSnapshotOverrides.get(String(row.id))
+    )
+  );
 }
 
 export async function getStoredOrderById(
@@ -477,7 +655,7 @@ export async function getStoredOrderById(
       : '';
 
   const orderRows = await db.$queryRawUnsafe<OrderRow[]>(
-    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_state, company_state, sale_type_id, sale_type_name, voucher_series_id, voucher_series_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
+    `SELECT id, order_number, company_id, financial_year, product_id, customer_id, customer_name, customer_salesman_id, customer_salesman_name, customer_salesman_mobile_number, customer_salesman_whatsapp_number, customer_state, company_state, sale_type_id, sale_type_name, voucher_series_id, voucher_series_name, material_center_id, material_center_name, salesman_id, cart_value, subtotal, tax, total, status, notes, created_by, created_by_role, created_at, updated_at
      FROM orders
      WHERE id = ?${companyFilterSql}`,
     ...params
@@ -490,7 +668,12 @@ export async function getStoredOrderById(
   }
 
   const itemRows = (await loadOrderItems(db, [numericOrderId])).get(numericOrderId) ?? [];
-  return mapOrder(orderRow, itemRows);
+  const [salesmanSnapshotOverride] = await Promise.all([
+    buildSalesmanSnapshotOverrides([orderRow]).then((snapshots) =>
+      snapshots.get(String(orderRow.id))
+    ),
+  ]);
+  return mapOrder(orderRow, itemRows, salesmanSnapshotOverride);
 }
 
 export async function createStoredOrder(params: CreateOrderParams): Promise<Order> {
@@ -544,6 +727,10 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         product_id,
         customer_id,
         customer_name,
+        customer_salesman_id,
+        customer_salesman_name,
+        customer_salesman_mobile_number,
+        customer_salesman_whatsapp_number,
         customer_state,
         company_state,
         sale_type_id,
@@ -563,13 +750,17 @@ export async function createStoredOrder(params: CreateOrderParams): Promise<Orde
         created_by_role,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       orderNumber,
       params.companyId ?? null,
       params.financialYear ?? null,
       params.items[0]?.productId ?? null,
       params.customerId,
       params.customerName,
+      params.customerSalesmanId?.trim() || null,
+      params.customerSalesmanName?.trim() || null,
+      params.customerSalesmanMobileNumber?.trim() || null,
+      params.customerSalesmanWhatsappNumber?.trim() || null,
       params.customerState?.trim() || null,
       params.companyState?.trim() || null,
       params.saleTypeId?.trim() || null,

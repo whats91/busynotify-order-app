@@ -26,6 +26,10 @@ interface CreateOrderBody {
   financialYear?: string;
   customerId?: string;
   customerName?: string;
+  customerSalesmanId?: string;
+  customerSalesmanName?: string;
+  customerSalesmanMobileNumber?: string;
+  customerSalesmanWhatsappNumber?: string;
   customerState?: string;
   companyState?: string;
   saleTypeId?: string;
@@ -209,6 +213,10 @@ export async function POST(request: NextRequest) {
       financialYear: body.financialYear,
       customerId: body.customerId,
       customerName: body.customerName,
+      customerSalesmanId: body.customerSalesmanId,
+      customerSalesmanName: body.customerSalesmanName,
+      customerSalesmanMobileNumber: body.customerSalesmanMobileNumber,
+      customerSalesmanWhatsappNumber: body.customerSalesmanWhatsappNumber,
       customerState: body.customerState,
       companyState: body.companyState,
       saleTypeId: body.saleTypeId,
